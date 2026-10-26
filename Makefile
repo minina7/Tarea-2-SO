@@ -1,8 +1,10 @@
 CXX = g++
-CXXFLAGS = -Wall -Wextra -std=c++17 -pthread
+CXXFLAGS = -Wall -Wextra -std=c++17 -pthread -Iinclude
 
 TARGET = torneo
-SRC = src/main.cpp
+
+SRC = src/main.cpp \
+      src/tablero.cpp
 
 all:
 	$(CXX) $(CXXFLAGS) $(SRC) -o $(TARGET)
