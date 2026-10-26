@@ -1,0 +1,7 @@
+torneo
+*.o
+*.log
+build/
+logs/*.txt
+.vscode/
+
