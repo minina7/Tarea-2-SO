@@ -46,15 +46,12 @@ El programa se compila con C++17 utilizando las opciones:
 
 ### Main
 
-Actualmente el `main` se utiliza para probar la logica basica del juego.
+Actualmente el `main` se utiliza para iniciar una partida concurrente de prueba.
 
-Se realizan pruebas para:
-
-- colocar el Puma y los Perros en el tablero;
-- realizar una captura valida;
-- rechazar una captura invalida;
-- comprobar que un Perro no pueda ocupar la posicion del Puma;
-- comprobar cuando el Puma queda completamente acorralado.
+- Define la posicion inicial del Puma.
+- Define las posiciones iniciales de los 12 Perros.
+- Crea una partida con retardos entre 50 y 300 ms.
+- Inicia la ejecucion concurrente de las fichas.
 
 Mas adelante el `main` sera adaptado para recibir los argumentos `N`, `M` y el archivo de configuracion.
 
@@ -64,13 +61,13 @@ El tablero se encuentra implementado utilizando un grafo.
 
 Se utilizan 28 posiciones en total:
 
-- 25 posiciones para la cuadricula principal de 5x5;
+- 25 posiciones para la cuadricula principal de 5x5.
 - 3 posiciones para el trono.
 
 Cada posicion puede contener:
 
-- `.` si esta vacia;
-- `P` si contiene al Puma;
+- `.` si esta vacia.
+- `P` si contiene al Puma.
 - `D` si contiene un Perro.
 
 Actualmente el tablero permite:
@@ -113,6 +110,21 @@ El Puma gana cuando alcanza 6 Perros capturados.
 
 Los Perros ganan cuando el Puma no tiene movimientos normales ni capturas disponibles.
 
+### Partida concurrente
+
+- Se crea un thread para el Puma y un thread para cada Perro.
+- La partida utiliza 1 Puma y 12 Perros.
+- Cada ficha intenta moverse de forma independiente.
+- Antes de cada movimiento se utiliza un retardo aleatorio entre 50 y 300 ms.
+- El tablero es compartido por todos los threads de la partida.
+- Se utiliza un `pthread_mutex_t` para proteger el acceso al tablero.
+- Solo un thread puede revisar y modificar el tablero al mismo tiempo.
+- Esto evita que dos fichas ocupen una misma posicion de forma simultanea.
+- El Puma puede realizar movimientos normales y capturar Perros durante la ejecucion concurrente.
+- Cuando un Perro es capturado, su thread deja de participar en la partida.
+- Cuando se detecta una condicion de victoria, los threads terminan.
+- Se utiliza `pthread_join()` para esperar correctamente la finalizacion de los threads.
+
 ## Decisiones de diseño
 
 - El tablero se representa como un grafo porque ademas de la cuadricula de 5x5 tambien existe el trono.
@@ -123,7 +135,10 @@ Los Perros ganan cuando el Puma no tiene movimientos normales ni capturas dispon
 - La clase `Tablero` se encarga solamente de guardar y modificar el estado de las posiciones.
 - La clase `Juego` se encuentra separada del tablero para mantener las reglas del Komikan aparte de la representacion del tablero.
 - Para revisar los saltos del Puma se utilizan coordenadas para comprobar que el movimiento continue en la misma direccion.
-- Por ahora la logica del juego funciona de manera secuencial. La concurrencia se agregara despues de terminar y probar las reglas principales.
+- Para la primera version concurrente se utiliza un mutex global por partida para proteger todo el tablero.
+- Se eligio un mutex global porque el tablero es pequeno y permite evitar condiciones de carrera sin agregar demasiada complejidad.
+- Aunque este metodo limita que dos movimientos se modifiquen al mismo tiempo, mantiene el estado del tablero consistente y reduce el riesgo de deadlocks.
+- Cada ficha realiza el retardo fuera de la seccion critica y solo toma el mutex cuando necesita revisar o modificar el tablero.
 
 ## Pruebas
 
@@ -139,34 +154,40 @@ Actualmente se han realizado pruebas para:
 - rechazo de una captura que cambia de direccion;
 - rechazo del movimiento de un Perro hacia una casilla ocupada por el Puma;
 - deteccion de un Puma completamente acorralado;
-- compilacion con `-Wall -Wextra -std=c++17`.
-- victoria del puma al capturar 6 perros
+- victoria del Puma al capturar 6 Perros;
+- compilacion con `-Wall -Wextra -std=c++17 -pthread`;
+- ejecucion concurrente del Puma y los 12 Perros;
+- movimientos realizados por distintos threads;
+- retardos aleatorios entre movimientos;
+- capturas del Puma durante una partida concurrente;
+- proteccion del tablero mediante mutex;
+- finalizacion de los threads al terminar la partida;
+- deteccion de victoria durante una partida concurrente.
 
 ## Estado actual
 
-Actualmente se encuentra implementada la estructura basica del tablero y las reglas principales de movimiento y captura.
+Actualmente se encuentra implementada la logica basica del juego y una partida concurrente.
+
+Cada ficha se ejecuta mediante un thread y el tablero compartido se protege utilizando un mutex global.
 
 Todavia falta implementar:
 
-- disposicion inicial completa de las 12 fichas de Perro y el Puma;
-- prueba de victoria del Puma con 6 capturas;
 - lectura de `config.txt`;
-- retardos aleatorios entre movimientos;
-- threads para las fichas;
-- sincronizacion del tablero;
-- mutexes, semaforos y otras primitivas POSIX;
-- jugadores concurrentes;
+- servidor y llegada de jugadores;
 - emparejamiento de jugadores;
-- limite de mesas activas;
+- varias mesas funcionando al mismo tiempo;
+- limite maximo de `M` mesas;
+- semaforo para controlar las mesas disponibles;
 - Juez de cada mesa;
 - manejo de desconexiones;
 - manejo de `SIGINT`;
 - logs de las partidas;
-- pruebas de concurrencia y estres.
+- pruebas de estres y concurrencia.
 
 ## Limitaciones
 
-- La version actual todavia no utiliza concurrencia.
-- El programa actual se utiliza principalmente para probar la logica del tablero y las reglas basicas.
-- La entrada `./torneo N M [config.txt]` todavia no esta implementada.
-- Todavia no se simula una partida completa con las 13 fichas funcionando al mismo tiempo.
+- Actualmente se simula una sola partida concurrente.
+- Todavia no se encuentra implementado el servidor de jugadores.
+- El limite de `M` mesas todavia no esta implementado.
+- El archivo `config.txt` todavia no se utiliza.
+- La sincronizacion actual utiliza un mutex global para todo el tablero.

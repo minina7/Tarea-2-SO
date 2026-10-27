@@ -33,16 +33,12 @@ bool Juego::moverPerro(int origen, int destino) {
 }
 
 
-// Obtiene una coordenada para cada posicion.
-// Esto sirve para comprobar que un salto siga
-// una misma direccion.
 bool Juego::obtenerCoordenadas(
     int posicion,
     int& x,
     int& y
 ) const {
 
-    // Cuadricula principal.
     if (posicion >= 0 && posicion <= 24) {
 
         x = posicion % 5;
@@ -51,7 +47,6 @@ bool Juego::obtenerCoordenadas(
         return true;
     }
 
-    // Trono izquierdo.
     if (posicion == 25) {
 
         x = 1;
@@ -60,7 +55,6 @@ bool Juego::obtenerCoordenadas(
         return true;
     }
 
-    // Punta del trono.
     if (posicion == 26) {
 
         x = 2;
@@ -69,7 +63,6 @@ bool Juego::obtenerCoordenadas(
         return true;
     }
 
-    // Trono derecho.
     if (posicion == 27) {
 
         x = 3;
@@ -95,18 +88,13 @@ bool Juego::esSaltoValido(
         return false;
     }
 
-
-    // El Perro debe estar al lado del Puma.
     if (!tablero.sonAdyacentes(origen, perro)) {
         return false;
     }
 
-
-    // El destino debe estar al lado del Perro.
     if (!tablero.sonAdyacentes(perro, destino)) {
         return false;
     }
-
 
     int xOrigen;
     int yOrigen;
@@ -116,7 +104,6 @@ bool Juego::esSaltoValido(
 
     int xDestino;
     int yDestino;
-
 
     obtenerCoordenadas(
         origen,
@@ -136,17 +123,36 @@ bool Juego::esSaltoValido(
         yDestino
     );
 
-
     int dx1 = xPerro - xOrigen;
     int dy1 = yPerro - yOrigen;
 
     int dx2 = xDestino - xPerro;
     int dy2 = yDestino - yPerro;
 
-
-    // El salto debe continuar en la misma direccion.
     return dx1 == dx2 &&
            dy1 == dy2;
+}
+
+
+bool Juego::puedeCapturarPerro(
+    int origen,
+    int perro,
+    int destino
+) const {
+
+    if (tablero.obtenerFicha(origen) != 'P') {
+        return false;
+    }
+
+    if (tablero.obtenerFicha(perro) != 'D') {
+        return false;
+    }
+
+    if (!tablero.estaLibre(destino)) {
+        return false;
+    }
+
+    return esSaltoValido(origen, perro, destino);
 }
 
 
@@ -156,42 +162,13 @@ bool Juego::capturarPerro(
     int destino
 ) {
 
-    // Tiene que haber un Puma en el origen.
-    if (tablero.obtenerFicha(origen) != 'P') {
+    if (!puedeCapturarPerro(origen, perro, destino)) {
         return false;
     }
 
-
-    // Tiene que existir un Perro que capturar.
-    if (tablero.obtenerFicha(perro) != 'D') {
+    if (!tablero.capturarFicha(origen, perro, destino)) {
         return false;
     }
-
-
-    // El lugar donde cae el Puma debe estar libre.
-    if (!tablero.estaLibre(destino)) {
-        return false;
-    }
-
-
-    // Comprobamos que realmente sea un salto valido.
-    if (!esSaltoValido(
-            origen,
-            perro,
-            destino)) {
-
-        return false;
-    }
-
-
-    if (!tablero.capturarFicha(
-            origen,
-            perro,
-            destino)) {
-
-        return false;
-    }
-
 
     perrosCapturados++;
 
@@ -215,8 +192,6 @@ bool Juego::pumaTieneMovimientos() const {
 
     int posicionPuma = -1;
 
-
-    // Buscar al Puma.
     for (int i = 0;
          i < Tablero::TOTAL_CASILLAS;
          ++i) {
@@ -228,13 +203,10 @@ bool Juego::pumaTieneMovimientos() const {
         }
     }
 
-
     if (posicionPuma == -1) {
         return false;
     }
 
-
-    // Primero buscamos movimientos normales.
     for (int destino = 0;
          destino < Tablero::TOTAL_CASILLAS;
          ++destino) {
@@ -248,8 +220,6 @@ bool Juego::pumaTieneMovimientos() const {
         }
     }
 
-
-    // Ahora buscamos posibles capturas.
     for (int perro = 0;
          perro < Tablero::TOTAL_CASILLAS;
          ++perro) {
@@ -258,7 +228,6 @@ bool Juego::pumaTieneMovimientos() const {
             continue;
         }
 
-
         for (int destino = 0;
              destino < Tablero::TOTAL_CASILLAS;
              ++destino) {
@@ -266,7 +235,6 @@ bool Juego::pumaTieneMovimientos() const {
             if (!tablero.estaLibre(destino)) {
                 continue;
             }
-
 
             if (esSaltoValido(
                     posicionPuma,
@@ -277,7 +245,6 @@ bool Juego::pumaTieneMovimientos() const {
             }
         }
     }
-
 
     return false;
 }

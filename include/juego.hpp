@@ -35,6 +35,8 @@ public:
 
     bool moverPerro(int origen, int destino);
 
+    bool puedeCapturarPerro(int origen, int perro, int destino) const;
+
     bool capturarPerro(
         int origen,
         int perro,
@@ -48,6 +50,7 @@ public:
     bool pumaTieneMovimientos() const;
 
     bool victoriaPerros() const;
+    
 };
 
 #endif
