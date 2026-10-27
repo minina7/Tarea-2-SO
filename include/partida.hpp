@@ -8,10 +8,8 @@
 
 using namespace std;
 
-
 class Partida {
 private:
-
     struct DatosHilo {
         Partida* partida;
         int indice;
@@ -23,10 +21,13 @@ private:
     pthread_mutex_t mutexTablero;
 
     int posicionPuma;
+
     vector<int> posicionesPerros;
 
     int retardoMin;
     int retardoMax;
+
+    unsigned int semillaBase;
 
     bool terminada;
 
@@ -36,17 +37,21 @@ private:
     int obtenerRetardo(unsigned int& seed);
 
     bool moverPumaAleatorio(unsigned int& seed);
-    bool moverPerroAleatorio(int indice, unsigned int& seed);
+
+    bool moverPerroAleatorio(
+        int indice,
+        unsigned int& seed
+    );
 
     void revisarFinPartida();
 
 public:
-
     Partida(
         int posicionInicialPuma,
         const vector<int>& posicionesInicialesPerros,
         int retardoMinimo,
-        int retardoMaximo
+        int retardoMaximo,
+        unsigned int semilla
     );
 
     ~Partida();

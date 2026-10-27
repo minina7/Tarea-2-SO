@@ -34,7 +34,7 @@ Para eliminar el ejecutable:
 make clean
 ```
 
-La forma final de ejecucion pedida para la tarea sera:
+La forma final de ejecucion pedida para la tarea es:
 
 ```bash
 ./torneo N M [config.txt]
@@ -42,9 +42,34 @@ La forma final de ejecucion pedida para la tarea sera:
 
 - `N`: cantidad total de jugadores.
 - `M`: cantidad maxima de mesas que pueden funcionar al mismo tiempo.
-- `config.txt`: archivo de configuracion opcional.
 
-Actualmente el programa ya recibe `N` y `M`. La lectura de `config.txt` todavia no se encuentra implementada.
+El archivo `config.txt` es opcional. Si no se entrega, el programa utiliza valores por defecto.
+
+El archivo permite configurar:
+
+- retardo minimo entre movimientos;
+- retardo maximo entre movimientos;
+- semilla utilizada para los movimientos aleatorios;
+- posicion inicial del Puma;
+- posiciones iniciales de los 12 Perros.
+
+Ejemplo de `config.txt`:
+
+```text
+retardo_min=50
+retardo_max=300
+semilla=12345
+puma=12
+perros=0,1,2,3,4,5,6,7,8,9,11,13
+```
+
+Para ejecutar utilizando el archivo de configuracion:
+
+```bash
+./torneo 8 2 config.txt
+```
+
+Actualmente el programa recibe `N`, `M` y opcionalmente un archivo `config.txt`.
 
 El programa se compila con C++17 utilizando las opciones:
 
@@ -63,7 +88,9 @@ Se comprueba que:
 
 Luego se crea el servidor encargado de organizar las partidas del torneo.
 
-Mas adelante se agregara la lectura del archivo opcional `config.txt`.
+El `main` tambien permite recibir opcionalmente un archivo `config.txt`.
+
+Si el archivo es entregado, se carga y valida antes de iniciar el torneo. Si no se entrega, se utilizan los valores por defecto.
 
 ### Tablero
 
@@ -125,7 +152,8 @@ Los Perros ganan cuando el Puma no tiene movimientos normales ni capturas dispon
 - Se crea un thread para el Puma y un thread para cada Perro.
 - La partida utiliza 1 Puma y 12 Perros.
 - Cada ficha intenta moverse de forma independiente.
-- Antes de cada movimiento se utiliza un retardo aleatorio entre 50 y 300 ms.
+- Antes de cada movimiento se utiliza un retardo aleatorio.
+- El rango de retardos puede definirse mediante `config.txt`.
 - El tablero es compartido por todos los threads de la partida.
 - Se utiliza un `pthread_mutex_t` para proteger el acceso al tablero.
 - Solo un thread puede revisar y modificar el tablero al mismo tiempo.
@@ -150,6 +178,30 @@ La clase `Servidor` se encarga actualmente de organizar las partidas del torneo.
 - El servidor espera la finalizacion de todas las partidas utilizando `pthread_join()`.
 - Si la cantidad de jugadores es impar, el ultimo jugador queda sin pareja.
 
+### Configuracion
+
+La clase `Configuracion` se encarga de cargar y validar los valores del archivo opcional `config.txt`.
+
+Actualmente permite configurar:
+
+- retardo minimo;
+- retardo maximo;
+- semilla aleatoria;
+- posicion inicial del Puma;
+- posiciones iniciales de los 12 Perros.
+
+Si no se entrega un archivo de configuracion, se utilizan valores por defecto.
+
+Tambien se comprueba que:
+
+- el retardo minimo no sea negativo;
+- el retardo maximo sea mayor o igual que el minimo;
+- la posicion del Puma sea valida;
+- las posiciones de los Perros sean validas;
+- existan exactamente 12 Perros;
+- no existan dos fichas utilizando la misma posicion;
+- los valores del archivo tengan un formato valido.
+
 ## Decisiones de diseño
 
 - El tablero se representa como un grafo porque ademas de la cuadricula de 5x5 tambien existe el trono.
@@ -168,6 +220,10 @@ La clase `Servidor` se encarga actualmente de organizar las partidas del torneo.
 - Antes de comenzar una partida se utiliza `sem_wait()` y al terminar se utiliza `sem_post()`.
 - De esta forma nunca pueden existir mas de `M` mesas activas al mismo tiempo.
 - Las partidas que no encuentran una mesa disponible quedan esperando sin realizar espera activa.
+- La configuracion se encuentra separada en una clase propia para no mezclar la lectura del archivo con la logica del torneo.
+- Si no se entrega `config.txt`, el programa mantiene valores por defecto.
+- Cada partida recibe una semilla derivada de la semilla configurada y de su numero de partida.
+- Antes de iniciar el torneo se validan los valores del archivo para evitar posiciones invalidas, fichas repetidas o rangos de retardo incorrectos.
 
 ## Pruebas
 
@@ -198,22 +254,26 @@ Actualmente se han realizado pruebas para:
 - prueba con 8 jugadores y 2 mesas;
 - comprobacion de que nunca existan mas de `M` mesas activas;
 - liberacion de una mesa al finalizar una partida;
-- inicio de una nueva partida cuando queda una mesa disponible.
+- inicio de una nueva partida cuando queda una mesa disponible;
+- ejecucion sin `config.txt` utilizando valores por defecto;
+- carga correcta de `config.txt`;
+- cambio del rango de retardos mediante el archivo;
+- cambio de la semilla aleatoria mediante el archivo;
+- validacion de una configuracion con retardos incorrectos;
+- rechazo de una configuracion invalida antes de iniciar las partidas.
 
 ## Estado actual
 
-Actualmente se encuentra implementada la logica basica del juego, las partidas concurrentes y el control de varias mesas.
+Actualmente se encuentra implementada la logica basica del juego, las partidas concurrentes, el control de varias mesas y la lectura del archivo de configuracion.
 
 Cada ficha se ejecuta mediante un thread y el tablero compartido de cada partida se protege utilizando un mutex global.
 
 El servidor puede crear varias partidas a partir de `N` jugadores y utiliza un semaforo para impedir que funcionen mas de `M` mesas al mismo tiempo.
 
+El programa tambien puede utilizar un archivo `config.txt` opcional para definir los retardos, la semilla y las posiciones iniciales.
+
 Todavia falta implementar:
 
-- lectura de `config.txt`;
-- configuracion de retardos mediante archivo;
-- configuracion de posiciones iniciales;
-- semilla aleatoria configurable;
 - Juez de cada mesa;
 - manejo de desconexiones;
 - manejo de `SIGINT`;
@@ -222,10 +282,7 @@ Todavia falta implementar:
 
 ## Limitaciones
 
-- El archivo `config.txt` todavia no se utiliza.
-- Los retardos se mantienen actualmente entre 50 y 300 ms.
-- Las posiciones iniciales de las fichas se encuentran definidas directamente en el codigo.
-- La semilla aleatoria todavia no se puede configurar desde un archivo.
 - Todavia no se encuentra implementado el manejo de desconexiones.
 - Todavia no se encuentra implementado el manejo de `SIGINT`.
+- Todavia no se generan archivos de log para las partidas.
 - La sincronizacion interna de cada partida utiliza un mutex global para todo el tablero.

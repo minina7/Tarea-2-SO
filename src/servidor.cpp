@@ -6,38 +6,34 @@
 
 using namespace std;
 
-
-Servidor::Servidor(int jugadores, int mesas) {
-
+Servidor::Servidor(
+    int jugadores,
+    int mesas,
+    const Configuracion& config
+) {
     cantidadJugadores = jugadores;
     maxMesas = mesas;
+
+    configuracion = config;
 
     mesasActivas = 0;
 
     sem_init(&semaforoMesas, 0, maxMesas);
-
     pthread_mutex_init(&mutexEstado, nullptr);
 }
 
-
 Servidor::~Servidor() {
-
     sem_destroy(&semaforoMesas);
-
     pthread_mutex_destroy(&mutexEstado);
 }
 
-
 void* Servidor::ejecutarPartida(void* datos) {
-
     DatosPartida* info =
         static_cast<DatosPartida*>(datos);
 
     Servidor* servidor = info->servidor;
 
-
     sem_wait(&servidor->semaforoMesas);
-
 
     pthread_mutex_lock(&servidor->mutexEstado);
 
@@ -61,25 +57,16 @@ void* Servidor::ejecutarPartida(void* datos) {
 
     pthread_mutex_unlock(&servidor->mutexEstado);
 
-
-    int posicionPuma = 12;
-
-    vector<int> posicionesPerros = {
-        0, 1, 2, 3, 4,
-        5, 6, 7, 8, 9,
-        11, 13
-    };
-
-
     Partida partida(
-        posicionPuma,
-        posicionesPerros,
-        50,
-        300
+        servidor->configuracion.posicionPuma,
+        servidor->configuracion.posicionesPerros,
+        servidor->configuracion.retardoMin,
+        servidor->configuracion.retardoMax,
+        servidor->configuracion.semilla +
+            info->numeroPartida * 1000
     );
 
     partida.iniciar();
-
 
     pthread_mutex_lock(&servidor->mutexEstado);
 
@@ -97,19 +84,14 @@ void* Servidor::ejecutarPartida(void* datos) {
 
     pthread_mutex_unlock(&servidor->mutexEstado);
 
-
     sem_post(&servidor->semaforoMesas);
-
 
     return nullptr;
 }
 
-
 void Servidor::iniciar() {
-
     int cantidadPartidas =
         cantidadJugadores / 2;
-
 
     vector<pthread_t> hilos(
         cantidadPartidas
@@ -118,7 +100,6 @@ void Servidor::iniciar() {
     vector<DatosPartida> datos(
         cantidadPartidas
     );
-
 
     cout << "Jugadores: "
          << cantidadJugadores
@@ -132,11 +113,7 @@ void Servidor::iniciar() {
          << cantidadPartidas
          << "\n";
 
-
-    for (int i = 0;
-         i < cantidadPartidas;
-         i++) {
-
+    for (int i = 0; i < cantidadPartidas; i++) {
         datos[i].servidor = this;
 
         datos[i].jugadorPuma =
@@ -148,7 +125,6 @@ void Servidor::iniciar() {
         datos[i].numeroPartida =
             i + 1;
 
-
         pthread_create(
             &hilos[i],
             nullptr,
@@ -157,20 +133,15 @@ void Servidor::iniciar() {
         );
     }
 
-
     for (pthread_t hilo : hilos) {
-
         pthread_join(hilo, nullptr);
     }
 
-
     if (cantidadJugadores % 2 != 0) {
-
         cout << "\nEl jugador "
              << cantidadJugadores
              << " quedo sin pareja.\n";
     }
-
 
     cout << "\nTodas las partidas terminaron.\n";
 }

@@ -5,12 +5,12 @@
 #include <semaphore.h>
 #include <vector>
 
-using namespace std;
+#include "configuracion.hpp"
 
+using namespace std;
 
 class Servidor {
 private:
-
     struct DatosPartida {
         Servidor* servidor;
         int jugadorPuma;
@@ -21,8 +21,9 @@ private:
     int cantidadJugadores;
     int maxMesas;
 
-    sem_t semaforoMesas;
+    Configuracion configuracion;
 
+    sem_t semaforoMesas;
     pthread_mutex_t mutexEstado;
 
     int mesasActivas;
@@ -30,8 +31,11 @@ private:
     static void* ejecutarPartida(void* datos);
 
 public:
-
-    Servidor(int jugadores, int mesas);
+    Servidor(
+        int jugadores,
+        int mesas,
+        const Configuracion& config
+    );
 
     ~Servidor();
 

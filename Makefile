@@ -7,7 +7,8 @@ SRC = src/main.cpp \
       src/tablero.cpp \
       src/juego.cpp \
       src/partida.cpp \
-      src/servidor.cpp
+      src/servidor.cpp \
+      src/configuracion.cpp
 
 all:
 	$(CXX) $(CXXFLAGS) $(SRC) -o $(TARGET)
