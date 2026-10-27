@@ -33,6 +33,12 @@ private:
     bool terminada;
     bool estadoPendiente;
 
+    bool abandonoPuma;
+    bool abandonoPerros;
+
+    int ganador;
+    bool finalizoPorAbandono;
+
     static void* ejecutarPuma(void* datos);
     static void* ejecutarPerro(void* datos);
     static void* ejecutarJuez(void* datos);
@@ -58,6 +64,12 @@ public:
     ~Partida();
 
     void iniciar();
+
+    void reportarAbandonoPuma();
+    void reportarAbandonoPerros();
+
+    int obtenerGanador();
+    bool terminoPorAbandono();
 };
 
 #endif

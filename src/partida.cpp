@@ -24,6 +24,12 @@ Partida::Partida(
     terminada = false;
     estadoPendiente = true;
 
+    abandonoPuma = false;
+    abandonoPerros = false;
+
+    ganador = 0;
+    finalizoPorAbandono = false;
+
     pthread_mutex_init(&mutexTablero, nullptr);
     pthread_cond_init(&condEstado, nullptr);
 
@@ -55,6 +61,57 @@ int Partida::obtenerRetardo(
         static_cast<int>(
             rand_r(&seed) % diferencia
         );
+}
+
+void Partida::reportarAbandonoPuma() {
+    pthread_mutex_lock(&mutexTablero);
+
+    if (!terminada) {
+        abandonoPuma = true;
+        estadoPendiente = true;
+
+        pthread_cond_broadcast(
+            &condEstado
+        );
+    }
+
+    pthread_mutex_unlock(&mutexTablero);
+}
+
+void Partida::reportarAbandonoPerros() {
+    pthread_mutex_lock(&mutexTablero);
+
+    if (!terminada) {
+        abandonoPerros = true;
+        estadoPendiente = true;
+
+        pthread_cond_broadcast(
+            &condEstado
+        );
+    }
+
+    pthread_mutex_unlock(&mutexTablero);
+}
+
+int Partida::obtenerGanador() {
+    pthread_mutex_lock(&mutexTablero);
+
+    int resultado = ganador;
+
+    pthread_mutex_unlock(&mutexTablero);
+
+    return resultado;
+}
+
+bool Partida::terminoPorAbandono() {
+    pthread_mutex_lock(&mutexTablero);
+
+    bool resultado =
+        finalizoPorAbandono;
+
+    pthread_mutex_unlock(&mutexTablero);
+
+    return resultado;
 }
 
 bool Partida::moverPerroAleatorio(
@@ -265,10 +322,12 @@ bool Partida::moverPumaAleatorio(
     int origen =
         posicionPuma;
 
-    if (!juego.moverPuma(
-        origen,
-        destino
-    )) {
+    if (
+        !juego.moverPuma(
+            origen,
+            destino
+        )
+    ) {
         return false;
     }
 
@@ -308,12 +367,29 @@ void* Partida::ejecutarJuez(
             break;
         }
 
-        if (
+        if (partida->abandonoPuma) {
+            cout
+                << "\nJuez: Los Perros ganan por abandono del Puma.\n";
+
+            partida->ganador = 2;
+            partida->finalizoPorAbandono = true;
+            partida->terminada = true;
+        }
+        else if (partida->abandonoPerros) {
+            cout
+                << "\nJuez: El Puma gana por abandono de los Perros.\n";
+
+            partida->ganador = 1;
+            partida->finalizoPorAbandono = true;
+            partida->terminada = true;
+        }
+        else if (
             partida->juego.victoriaPuma()
         ) {
             cout
                 << "\nJuez: El Puma gana la partida.\n";
 
+            partida->ganador = 1;
             partida->terminada = true;
         }
         else if (
@@ -322,6 +398,7 @@ void* Partida::ejecutarJuez(
             cout
                 << "\nJuez: Los Perros ganan la partida.\n";
 
+            partida->ganador = 2;
             partida->terminada = true;
         }
 
@@ -396,7 +473,7 @@ void* Partida::ejecutarPuma(
             partida->estadoPendiente =
                 true;
 
-            pthread_cond_signal(
+            pthread_cond_broadcast(
                 &partida->condEstado
             );
         }
@@ -477,7 +554,7 @@ void* Partida::ejecutarPerro(
             partida->estadoPendiente =
                 true;
 
-            pthread_cond_signal(
+            pthread_cond_broadcast(
                 &partida->condEstado
             );
         }
@@ -498,6 +575,11 @@ void Partida::iniciar() {
         posicionesPerros.size()
     );
 
+    vector<bool> perrosCreados(
+        posicionesPerros.size(),
+        false
+    );
+
     DatosHilo datosPuma;
 
     vector<DatosHilo> datosPerros(
@@ -514,39 +596,74 @@ void Partida::iniciar() {
 
     juego.obtenerTablero().mostrar();
 
-    pthread_create(
-        &hiloJuez,
-        nullptr,
-        ejecutarJuez,
-        this
-    );
-
-    pthread_create(
-        &hiloPuma,
-        nullptr,
-        ejecutarPuma,
-        &datosPuma
-    );
-
-    for (
-        int i = 0;
-        i < static_cast<int>(
-            posicionesPerros.size()
-        );
-        i++
-    ) {
-        datosPerros[i].partida = this;
-        datosPerros[i].indice = i;
-
-        datosPerros[i].seed =
-            semillaBase + 200 + i;
-
+    int resultadoJuez =
         pthread_create(
-            &hilosPerros[i],
+            &hiloJuez,
             nullptr,
-            ejecutarPerro,
-            &datosPerros[i]
+            ejecutarJuez,
+            this
         );
+
+    if (resultadoJuez != 0) {
+        cout
+            << "Error: no se pudo crear el Juez.\n";
+
+        terminada = true;
+
+        return;
+    }
+
+    int resultadoPuma =
+        pthread_create(
+            &hiloPuma,
+            nullptr,
+            ejecutarPuma,
+            &datosPuma
+        );
+
+    bool pumaCreado =
+        resultadoPuma == 0;
+
+    if (!pumaCreado) {
+        cout
+            << "Fallo interno del jugador Puma.\n";
+
+        reportarAbandonoPuma();
+    }
+
+    if (pumaCreado) {
+        for (
+            int i = 0;
+            i < static_cast<int>(
+                posicionesPerros.size()
+            );
+            i++
+        ) {
+            datosPerros[i].partida = this;
+            datosPerros[i].indice = i;
+
+            datosPerros[i].seed =
+                semillaBase + 200 + i;
+
+            int resultado =
+                pthread_create(
+                    &hilosPerros[i],
+                    nullptr,
+                    ejecutarPerro,
+                    &datosPerros[i]
+                );
+
+            if (resultado != 0) {
+                cout
+                    << "Fallo interno del jugador Perros.\n";
+
+                reportarAbandonoPerros();
+
+                break;
+            }
+
+            perrosCreados[i] = true;
+        }
     }
 
     pthread_join(
@@ -554,16 +671,26 @@ void Partida::iniciar() {
         nullptr
     );
 
-    pthread_join(
-        hiloPuma,
-        nullptr
-    );
-
-    for (pthread_t hilo : hilosPerros) {
+    if (pumaCreado) {
         pthread_join(
-            hilo,
+            hiloPuma,
             nullptr
         );
+    }
+
+    for (
+        int i = 0;
+        i < static_cast<int>(
+            hilosPerros.size()
+        );
+        i++
+    ) {
+        if (perrosCreados[i]) {
+            pthread_join(
+                hilosPerros[i],
+                nullptr
+            );
+        }
     }
 
     cout << "\nPartida finalizada.\n";
