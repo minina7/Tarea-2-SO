@@ -12,6 +12,11 @@ using namespace std;
 
 class Servidor {
 private:
+    struct DatosCliente {
+        Servidor* servidor;
+        int jugador;
+    };
+
     struct DatosPartida {
         Servidor* servidor;
         int jugadorPuma;
@@ -25,15 +30,25 @@ private:
     Configuracion configuracion;
 
     sem_t semaforoMesas;
+
     pthread_mutex_t mutexEstado;
+    pthread_mutex_t mutexEmparejamiento;
 
     int mesasActivas;
+    int siguientePartida;
+
+    vector<int> jugadoresEsperando;
 
     vector<Partida*> partidasActivas;
 
-    static void* ejecutarPartida(
-        void* datos
-    );
+    vector<pthread_t> hilosPartidas;
+    vector<int> partidaCreada;
+    vector<DatosPartida> datosPartidas;
+
+    static void* ejecutarCliente(void* datos);
+    static void* ejecutarPartida(void* datos);
+
+    void registrarCliente(int jugador);
 
 public:
     Servidor(

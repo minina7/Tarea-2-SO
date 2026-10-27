@@ -2,7 +2,7 @@
 
 Tarea 2, Sistemas Operativos
 
-Programa que simula un torneo concurrente de Komikan, donde varios jugadores son emparejados en mesas y las fichas se mueven al mismo tiempo sobre un tablero compartido.
+Programa que simula un torneo concurrente de Komikan, donde varios jugadores llegan al servidor, son emparejados en mesas y las fichas se mueven al mismo tiempo sobre un tablero compartido.
 
 ## Integrante
 
@@ -37,6 +37,16 @@ La forma completa de ejecucion es:
 - `N`: cantidad total de jugadores
 - `M`: cantidad maxima de mesas que pueden funcionar al mismo tiempo
 
+El programa comprueba que `N` y `M` correspondan a numeros enteros validos.
+
+Tambien se comprueba que:
+
+- `N` sea al menos 2
+- `M` sea mayor que 0
+- no existan caracteres adicionales dentro de los valores numericos
+
+Por ejemplo, entradas como `abc`, `4abc` o un valor `M` igual a `0` son rechazadas antes de iniciar el servidor.
+
 El archivo `config.txt` es opcional. Si no se entrega, el programa utiliza valores por defecto.
 
 El archivo permite configurar:
@@ -69,7 +79,7 @@ Para ejecutar todas las pruebas automaticas:
 make tests
 ```
 
-Para eliminar los ejecutables:
+Para eliminar los ejecutables generados:
 
 ```bash
 make clean
@@ -87,10 +97,15 @@ g++ -Wall -Wextra -std=c++17 -pthread
 
 El `main` recibe los argumentos `N`, `M` y opcionalmente un archivo `config.txt`.
 
+La conversion de `N` y `M` se realiza utilizando `strtol()` para comprobar correctamente que los argumentos correspondan a numeros enteros validos.
+
 Se comprueba que:
 
+- `N` sea un numero entero valido
+- `M` sea un numero entero valido
 - `N` sea al menos 2
 - `M` sea mayor que 0
+- no existan caracteres invalidos despues del numero
 - el archivo de configuracion pueda cargarse correctamente cuando es entregado
 
 Si no se entrega un archivo de configuracion, se utilizan los valores por defecto.
@@ -150,8 +165,16 @@ Para realizar una captura se comprueba que:
 - en la posicion inicial exista un Puma
 - exista un Perro entre el origen y el destino
 - la posicion de destino este libre
-- el salto mantenga la misma direccion
-- las posiciones involucradas correspondan a conexiones validas del tablero
+- el origen sea adyacente al Perro
+- el Perro sea adyacente al destino
+- el salto continue en la misma linea
+- el movimiento continue en el mismo sentido
+
+Para comprobar la direccion de una captura se utilizan coordenadas asociadas a las posiciones del tablero.
+
+Se utiliza el producto cruz para comprobar que ambos segmentos del salto pertenezcan a la misma linea y el producto punto para comprobar que ambos continuen en el mismo sentido.
+
+Esto permite representar correctamente los saltos que involucran las posiciones del trono aunque los segmentos dibujados no tengan exactamente la misma longitud.
 
 Cada vez que una captura es valida se aumenta el contador de Perros capturados.
 
@@ -176,7 +199,7 @@ Cada partida funciona de manera independiente.
 - Cuando un Perro es capturado, su thread deja de participar
 - Cada partida posee un thread adicional que funciona como Juez
 - Los threads notifican al Juez cuando existe un nuevo estado que revisar
-- Cuando se detecta victoria, abandono o interrupcion, la partida se marca como terminada
+- Cuando se detecta victoria, abandono, fallo o interrupcion, la partida se marca como terminada
 - Se utiliza `pthread_join()` para esperar correctamente la finalizacion de los threads
 
 ### Juez
@@ -212,19 +235,26 @@ Cuando la partida debe finalizar, se despierta a los demas threads para que pued
 
 ### Servidor
 
-La clase `Servidor` se encarga de organizar las partidas del torneo.
+La clase `Servidor` se encarga de recibir a los jugadores, emparejarlos y administrar las mesas del torneo.
 
 - Recibe la cantidad total de jugadores `N`
 - Recibe la cantidad maxima de mesas simultaneas `M`
-- Los jugadores son emparejados de dos en dos
-- A cada pareja se le asigna un jugador Puma y un jugador Perros
-- Cada pareja ejecuta una partida en un thread independiente
+- Se crea un thread independiente para representar la llegada de cada jugador
+- Los `N` clientes pueden llegar concurrentemente al servidor
+- El orden de llegada puede cambiar entre distintas ejecuciones
+- Los jugadores que llegan se almacenan temporalmente en una cola de espera
+- La cola de jugadores se protege mediante un `pthread_mutex_t`
+- Cada vez que existen dos jugadores esperando se forma una pareja
+- El primer jugador de la pareja representa al Puma
+- El segundo jugador de la pareja representa a los Perros
+- Cada pareja genera una partida independiente
+- Si la cantidad de jugadores es impar, el ultimo jugador queda sin pareja
 - Se utiliza un semaforo `sem_t` para limitar la cantidad de mesas activas
 - Si todas las mesas estan ocupadas, las siguientes partidas quedan esperando mediante `sem_wait()`
 - Al terminar una partida se libera la mesa mediante `sem_post()`
-- Se mantiene un contador de mesas activas protegido por un mutex
-- El servidor espera la finalizacion de todas las partidas mediante `pthread_join()`
-- Si la cantidad de jugadores es impar, el ultimo jugador queda sin pareja
+- Se mantiene un contador de mesas activas protegido mediante un mutex
+- Nunca pueden funcionar mas de `M` mesas al mismo tiempo
+- El servidor espera la finalizacion de todos los threads creados mediante `pthread_join()`
 
 El servidor mantiene tambien una referencia a las partidas que se encuentran activas.
 
@@ -238,7 +268,9 @@ Esto permite:
 - liberar nuevamente la mesa cuando termina la partida
 - permitir que otra partida reutilice la mesa liberada
 
-Si se recibe `SIGINT`, el servidor evita continuar iniciando partidas y espera que las partidas activas finalicen de manera ordenada.
+En una prueba con 8 jugadores se comprobo que llegaron los 8 clientes al servidor, se formaron 4 parejas y nunca existieron mas de 2 mesas activas cuando `M = 2`.
+
+Si se recibe `SIGINT`, el servidor deja de aceptar el inicio de nuevas partidas y las partidas activas son notificadas para terminar de manera ordenada.
 
 ### Configuracion
 
@@ -276,14 +308,19 @@ El cierre real se realiza fuera del manejador de señal.
 
 Durante el cierre:
 
-- se evita iniciar nuevas partidas
+- se dejan de iniciar nuevas partidas
 - las partidas activas detectan la interrupcion
-- se notifica al Juez
+- se notifica a los Jueces
 - los Jueces terminan las partidas interrumpidas
-- los threads finalizan
-- las mesas son liberadas
+- los threads de las fichas finalizan
+- las mesas activas son liberadas
+- el contador de mesas vuelve a cero
 - el servidor espera el termino de los threads creados
 - los mutexes, variables de condicion y semaforos son destruidos al finalizar sus objetos
+
+La prueba final con varias partidas activas comprobo que al utilizar `Ctrl+C` las partidas activas terminaron mediante `SIGINT`, el numero de mesas activas volvio a `0` y el servidor termino mostrando un cierre ordenado.
+
+Tambien se comprobo posteriormente que no quedaran procesos `torneo` ejecutandose.
 
 ### Logs
 
@@ -333,7 +370,13 @@ El archivo se cierra al finalizar la partida.
 - Se utilizan los caracteres `P`, `D` y `.` para representar las fichas y posiciones vacias
 - La clase `Tablero` se encarga solamente de almacenar y modificar el estado del tablero
 - La clase `Juego` mantiene separadas las reglas del Komikan de la representacion del tablero
-- Para comprobar los saltos del Puma se utilizan coordenadas para verificar que el movimiento continue en la misma direccion
+- Para comprobar los saltos del Puma se utilizan coordenadas asociadas a las posiciones
+- El producto cruz permite comprobar que un salto continue sobre la misma linea
+- El producto punto permite comprobar que el movimiento continue en el mismo sentido
+- Cada jugador que llega al servidor se representa mediante un thread independiente
+- Los jugadores se registran en una cola de espera protegida mediante un mutex
+- El uso del mutex de emparejamiento permite evitar que dos threads modifiquen al mismo tiempo la cola de jugadores
+- Cada dos jugadores disponibles se genera una nueva partida
 - Se utiliza un mutex global por partida para proteger el tablero
 - Se eligio un mutex global porque el tablero es pequeño y permite mantener una solucion simple y segura
 - Aunque el mutex global limita que varios movimientos modifiquen simultaneamente una misma partida, evita estados inconsistentes y simplifica la prevencion de condiciones de carrera
@@ -344,8 +387,8 @@ El archivo se cierra al finalizar la partida.
 - Se utiliza `pthread_cond_broadcast()` cuando cambia un estado que puede afectar a varios threads
 - Los abandonos y fallos utilizan el mismo mecanismo de sincronizacion de la partida
 - El servidor mantiene referencias a las partidas activas para poder reportar fallos
-- Cuando se detecta un abandono, el Juez finaliza la partida y declara ganador al jugador contrario
-- La mesa se libera despues de terminar la partida incluso cuando esta termina por abandono
+- Cuando se detecta un abandono o fallo, el Juez finaliza la partida y declara ganador al jugador contrario
+- La mesa se libera despues de terminar la partida incluso cuando esta termina por abandono o fallo
 - Se utiliza un semaforo para representar la cantidad de mesas disponibles
 - Antes de utilizar una mesa se ejecuta `sem_wait()`
 - Al liberar una mesa se ejecuta `sem_post()`
@@ -356,6 +399,7 @@ El archivo se cierra al finalizar la partida.
 - Cada partida recibe una semilla derivada de la semilla configurada y de su numero de partida
 - La semilla permite repetir escenarios de prueba
 - Antes de iniciar el torneo se validan los valores de configuracion
+- Los argumentos `N` y `M` se convierten mediante `strtol()` para detectar entradas invalidas
 - El manejador de `SIGINT` solamente modifica una bandera
 - El cierre real se realiza fuera del manejador de señal
 - El servidor espera la finalizacion de todos los threads creados antes de terminar
@@ -363,7 +407,7 @@ El archivo se cierra al finalizar la partida.
 
 ## Pruebas
 
-Actualmente se han realizado pruebas para:
+Se han realizado pruebas para:
 
 - creacion del tablero vacio
 - colocacion del Puma
@@ -376,7 +420,25 @@ Actualmente se han realizado pruebas para:
 - rechazo del movimiento de un Perro hacia una casilla ocupada por el Puma
 - deteccion de un Puma completamente acorralado
 - victoria del Puma al capturar 6 Perros
+- conexiones entre la cuadricula principal y el trono
+- movimiento entre el trono y la cuadricula
+- captura vertical `7 -> 2 -> 26`
+- captura diagonal `0 -> 25 -> 26`
+- captura diagonal `4 -> 27 -> 26`
+- captura vertical `6 -> 1 -> 25`
+- rechazo de una captura del trono que cambia de direccion
 - compilacion con `-Wall -Wextra -std=c++17 -pthread`
+- validacion de `N` y `M`
+- rechazo de valores no numericos
+- rechazo de valores como `4abc`
+- rechazo de `N` menor que 2
+- rechazo de `M` menor que 1
+- llegada concurrente de `N` clientes al servidor
+- creacion de un thread por cada jugador
+- llegada de jugadores en distinto orden debido a la concurrencia
+- emparejamiento de jugadores de dos en dos
+- prueba con 8 jugadores formando 4 parejas
+- espera de jugadores hasta formar una pareja
 - ejecucion concurrente del Puma y los 12 Perros
 - movimientos realizados por distintos threads
 - retardos aleatorios entre movimientos
@@ -409,7 +471,6 @@ Actualmente se han realizado pruebas para:
 - comprobacion de que solamente una ficha puede ganar una posicion compartida
 - prueba de estres con 12 threads realizando operaciones concurrentes
 - prueba de estres utilizando ThreadSanitizer
-- ejecucion de la prueba de estres con ThreadSanitizer sin condiciones de carrera detectadas
 - prueba de abandono del jugador Puma
 - prueba de abandono del jugador Perros
 - deteccion del abandono por parte del Juez
@@ -420,7 +481,9 @@ Actualmente se han realizado pruebas para:
 - finalizacion ordenada de los threads durante una interrupcion
 - liberacion de las mesas activas despues de `SIGINT`
 - comprobacion de que las mesas activas llegan nuevamente a `0`
+- comprobacion de que no comiencen nuevas partidas despues de la interrupcion
 - cierre ordenado del servidor despues de `SIGINT`
+- comprobacion mediante `pgrep` de que no queden procesos `torneo` ejecutandose
 - creacion automatica del directorio de logs
 - creacion de un archivo de log independiente por partida
 - registro de movimientos dentro del log
@@ -435,6 +498,15 @@ Actualmente se han realizado pruebas para:
 - liberacion de una mesa despues de un fallo
 - reutilizacion de una mesa liberada por otra partida
 - comprobacion de que no quedan mesas activas despues de las partidas
+- ejecucion del torneo completo con ThreadSanitizer
+- ejecucion de 8 jugadores y 2 mesas bajo ThreadSanitizer
+- comprobacion de que ThreadSanitizer no reportara `data race`
+- ejecucion de la version final con los clientes concurrentes bajo ThreadSanitizer
+- comprobacion de finalizacion normal del torneo bajo ThreadSanitizer
+- analisis del programa mediante Valgrind
+- comprobacion de `0 bytes` en uso al finalizar
+- comprobacion de que todos los bloques de memoria fueron liberados
+- comprobacion de `ERROR SUMMARY: 0 errors` en Valgrind
 
 Las pruebas automaticas principales pueden ejecutarse mediante:
 
@@ -451,9 +523,12 @@ test_estres
 test_abandono
 test_logs
 test_fallo_servidor
+test_trono
 ```
 
-Para compilar la prueba de estres con ThreadSanitizer:
+### ThreadSanitizer
+
+Para compilar solamente la prueba de estres con ThreadSanitizer:
 
 ```bash
 make test_estres_tsan
@@ -465,15 +540,75 @@ En el entorno virtual utilizado fue necesario ejecutar ThreadSanitizer desactiva
 setarch "$(uname -m)" -R ./test_estres_tsan
 ```
 
+Tambien existe un objetivo para compilar el torneo completo con ThreadSanitizer:
+
+```bash
+make torneo_tsan
+```
+
+Para ejecutar el torneo completo bajo ThreadSanitizer:
+
+```bash
+setarch "$(uname -m)" -R ./torneo_tsan 8 2 config.txt
+```
+
+La version final, incluyendo los clientes concurrentes y el emparejamiento, fue ejecutada bajo ThreadSanitizer.
+
+En la ejecucion realizada no se obtuvieron advertencias de:
+
+```text
+WARNING: ThreadSanitizer
+data race
+SUMMARY: ThreadSanitizer
+```
+
+### Valgrind
+
+Tambien se utilizo Valgrind para revisar el manejo de memoria y descriptores del programa.
+
+La prueba se ejecuto mediante:
+
+```bash
+valgrind --leak-check=full --show-leak-kinds=all --track-fds=yes ./torneo 4 1 config.txt
+```
+
+El resultado final obtenido fue:
+
+```text
+in use at exit: 0 bytes in 0 blocks
+All heap blocks were freed -- no leaks are possible
+ERROR SUMMARY: 0 errors from 0 contexts
+```
+
+Valgrind mostro un descriptor heredado de VS Code correspondiente a:
+
+```text
+/snap/code/258/usr/share/code/v8_context_snapshot.bin
+```
+
+Este descriptor aparece marcado como `inherited from parent`, por lo que no fue abierto por el programa.
+
+Despues de finalizar tambien se comprobo mediante:
+
+```bash
+pgrep -af torneo
+```
+
+que no quedaran procesos del torneo ejecutandose.
+
 ## Estado actual
 
-Actualmente se encuentra implementada la logica del juego, las partidas concurrentes, el Juez de cada partida, el control de varias mesas, la lectura del archivo de configuracion, el manejo de abandono y fallos, el manejo de `SIGINT` y la generacion de logs independientes.
+Actualmente se encuentra implementada la logica del juego, las partidas concurrentes, el Juez de cada partida, la llegada concurrente de jugadores, el emparejamiento de clientes, el control de varias mesas, la lectura y validacion del archivo de configuracion, el manejo de abandonos y fallos, el manejo de `SIGINT`, la generacion de logs independientes y la validacion de los argumentos entregados al programa.
 
-Cada ficha se ejecuta mediante un thread y el tablero compartido de cada partida se protege utilizando un mutex global.
+Cada uno de los `N` jugadores se representa mediante un thread de cliente independiente que llega al servidor.
+
+Los jugadores se incorporan a una cola protegida por un mutex y se emparejan de dos en dos para formar las partidas.
+
+Cada ficha del Komikan se ejecuta mediante un thread y el tablero compartido de cada partida se protege utilizando un mutex global.
 
 Cada partida posee un Juez que espera mediante una variable de condicion y comprueba las condiciones de victoria cuando cambia el estado del tablero.
 
-El Juez tambien puede detectar abandonos reportados y declarar ganador al oponente.
+El Juez tambien puede recibir abandonos o fallos reportados y declarar ganador al oponente.
 
 El servidor mantiene las partidas activas y puede reportar fallos de cualquiera de los dos jugadores.
 
@@ -481,18 +616,32 @@ Cuando una partida termina por victoria, abandono, fallo o interrupcion, sus thr
 
 El servidor utiliza un semaforo para impedir que funcionen mas de `M` mesas simultaneamente.
 
+Las partidas que esperan una mesa permanecen bloqueadas mediante `sem_wait()` y no realizan espera activa.
+
 El programa permite utilizar un archivo `config.txt` opcional para definir retardos, semilla y posiciones iniciales.
 
 Cada partida genera su propio archivo de log dentro del directorio `logs`.
 
-Al recibir `SIGINT`, el programa evita continuar iniciando partidas, termina ordenadamente las partidas activas, espera los threads creados y libera las mesas utilizadas.
+Las capturas que involucran el trono fueron verificadas mediante una prueba automatica especifica.
 
-La implementacion funcional principal se encuentra terminada. Antes de la entrega queda realizar la bateria final de pruebas, revisar los requisitos de la pauta y preparar el informe solicitado.
+Las pruebas automaticas principales se ejecutan mediante `make tests`.
+
+La version final del torneo fue ejecutada utilizando ThreadSanitizer y no se detectaron condiciones de carrera durante la ejecucion realizada.
+
+La version final tambien fue analizada mediante Valgrind, obteniendo `0 bytes` en uso al finalizar y `0 errores`.
+
+El cierre mediante `SIGINT` fue probado con varias partidas activas. Las partidas fueron detenidas de manera ordenada, las mesas activas volvieron a `0` y el servidor finalizo correctamente.
+
+Tambien se comprobo que no quedaran procesos `torneo` ejecutandose despues de finalizar.
+
+La implementacion funcional y las pruebas tecnicas principales se encuentran terminadas.
+
+Antes de la entrega queda preparar el informe PDF solicitado y realizar la revision final del repositorio.
 
 ## Limitaciones
 
 - La sincronizacion interna de cada partida utiliza un mutex global para todo el tablero
 - El mutex global simplifica la seguridad del estado compartido, pero reduce el paralelismo posible dentro de una misma partida
-- Los jugadores se representan dentro de la simulacion mediante threads y estructuras internas del servidor
+- Los clientes y jugadores se representan mediante threads dentro de un unico proceso
 - El mecanismo de fallos se integra mediante reportes del servidor hacia la partida activa
-- Los archivos de log registran los eventos principales de cada partida, pero no almacenan una representacion completa del tablero despues de cada movimiento
+- Los archivos de log registran los eventos principales de cada partida, mientras que el estado completo del tablero se muestra principalmente por consola
