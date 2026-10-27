@@ -11,9 +11,13 @@ struct DatosPrueba {
     Partida* partida;
 };
 
-void* ejecutarPartidaPrueba(void* datos) {
+void* ejecutarPartidaPrueba(
+    void* datos
+) {
     DatosPrueba* info =
-        static_cast<DatosPrueba*>(datos);
+        static_cast<DatosPrueba*>(
+            datos
+        );
 
     info->partida->iniciar();
 
@@ -32,12 +36,14 @@ bool probarAbandonoPuma() {
         perros,
         500,
         500,
-        12345
+        12345,
+        9001
     );
 
     DatosPrueba datos;
 
-    datos.partida = &partida;
+    datos.partida =
+        &partida;
 
     pthread_t hilo;
 
@@ -52,7 +58,9 @@ bool probarAbandonoPuma() {
         return false;
     }
 
-    usleep(100000);
+    usleep(
+        100000
+    );
 
     partida.reportarAbandonoPuma();
 
@@ -78,12 +86,14 @@ bool probarAbandonoPerros() {
         perros,
         500,
         500,
-        54321
+        54321,
+        9002
     );
 
     DatosPrueba datos;
 
-    datos.partida = &partida;
+    datos.partida =
+        &partida;
 
     pthread_t hilo;
 
@@ -98,7 +108,9 @@ bool probarAbandonoPerros() {
         return false;
     }
 
-    usleep(100000);
+    usleep(
+        100000
+    );
 
     partida.reportarAbandonoPerros();
 
@@ -113,9 +125,12 @@ bool probarAbandonoPerros() {
 }
 
 int main() {
-    cout << "Prueba de abandono\n";
+    cout
+        << "Prueba de abandono\n";
 
-    if (!probarAbandonoPuma()) {
+    if (
+        !probarAbandonoPuma()
+    ) {
         cout
             << "ERROR: no se manejo correctamente el abandono del Puma.\n";
 
@@ -125,7 +140,9 @@ int main() {
     cout
         << "OK: abandono del Puma detectado.\n";
 
-    if (!probarAbandonoPerros()) {
+    if (
+        !probarAbandonoPerros()
+    ) {
         cout
             << "ERROR: no se manejo correctamente el abandono de los Perros.\n";
 

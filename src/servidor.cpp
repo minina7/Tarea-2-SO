@@ -134,7 +134,8 @@ void* Servidor::ejecutarPartida(
         servidor->configuracion.retardoMin,
         servidor->configuracion.retardoMax,
         servidor->configuracion.semilla +
-            info->numeroPartida * 1000
+            info->numeroPartida * 1000,
+        info->numeroPartida
     );
 
     if (

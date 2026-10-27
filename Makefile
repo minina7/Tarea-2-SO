@@ -29,13 +29,17 @@ test_estres_tsan:
 test_abandono:
 	$(CXX) $(CXXFLAGS) tests/test_abandono.cpp src/tablero.cpp src/juego.cpp src/partida.cpp src/senales.cpp -o test_abandono
 
-tests: test_juez test_colision test_estres test_abandono
+test_logs:
+	$(CXX) $(CXXFLAGS) tests/test_logs.cpp src/tablero.cpp src/juego.cpp src/partida.cpp src/senales.cpp -o test_logs
+
+tests: test_juez test_colision test_estres test_abandono test_logs
 	./test_juez
 	./test_colision
 	./test_estres
 	./test_abandono
+	./test_logs
 
 clean:
-	rm -f $(TARGET) test_juez test_colision test_estres test_estres_tsan test_abandono
+	rm -f $(TARGET) test_juez test_colision test_estres test_estres_tsan test_abandono test_logs
 
-.PHONY: all tests test_juez test_colision test_estres test_estres_tsan test_abandono clean
+.PHONY: all tests test_juez test_colision test_estres test_estres_tsan test_abandono test_logs clean

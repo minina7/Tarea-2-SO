@@ -4,4 +4,11 @@ torneo
 build/
 logs/*.txt
 .vscode/
+/test_juez
+/test_colision
+/test_estres
+/test_estres_tsan
+/test_abandono
+/test_logs
+/salida_*.txt
 

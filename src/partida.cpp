@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include "senales.hpp"
 
@@ -13,7 +14,8 @@ Partida::Partida(
     const vector<int>& posicionesInicialesPerros,
     int retardoMinimo,
     int retardoMaximo,
-    unsigned int semilla
+    unsigned int semilla,
+    int numero
 ) {
     posicionPuma =
         posicionInicialPuma;
@@ -29,6 +31,9 @@ Partida::Partida(
 
     semillaBase =
         semilla;
+
+    numeroPartida =
+        numero;
 
     terminada = false;
     estadoPendiente = true;
@@ -52,6 +57,37 @@ Partida::Partida(
         nullptr
     );
 
+    mkdir(
+        "logs",
+        0755
+    );
+
+    string ruta =
+        "logs/partida_" +
+        to_string(numeroPartida) +
+        ".txt";
+
+    archivoLog.open(
+        ruta,
+        ios::out
+    );
+
+    registrarLog(
+        "Partida " +
+        to_string(numeroPartida) +
+        " iniciada"
+    );
+
+    registrarLog(
+        "Semilla: " +
+        to_string(semillaBase)
+    );
+
+    registrarLog(
+        "Puma inicial: " +
+        to_string(posicionPuma)
+    );
+
     juego.obtenerTablero().colocarFicha(
         posicionPuma,
         'P'
@@ -66,6 +102,10 @@ Partida::Partida(
 }
 
 Partida::~Partida() {
+    if (archivoLog.is_open()) {
+        archivoLog.close();
+    }
+
     pthread_cond_destroy(
         &condEstado
     );
@@ -73,6 +113,16 @@ Partida::~Partida() {
     pthread_mutex_destroy(
         &mutexTablero
     );
+}
+
+void Partida::registrarLog(
+    const string& mensaje
+) {
+    if (archivoLog.is_open()) {
+        archivoLog
+            << mensaje
+            << endl;
+    }
 }
 
 int Partida::obtenerRetardo(
@@ -92,9 +142,16 @@ void Partida::reportarAbandonoPuma() {
         &mutexTablero
     );
 
-    if (!terminada) {
+    if (
+        !terminada &&
+        !abandonoPuma
+    ) {
         abandonoPuma = true;
         estadoPendiente = true;
+
+        registrarLog(
+            "Abandono reportado: Puma"
+        );
 
         pthread_cond_broadcast(
             &condEstado
@@ -111,9 +168,16 @@ void Partida::reportarAbandonoPerros() {
         &mutexTablero
     );
 
-    if (!terminada) {
+    if (
+        !terminada &&
+        !abandonoPerros
+    ) {
         abandonoPerros = true;
         estadoPendiente = true;
+
+        registrarLog(
+            "Abandono reportado: Perros"
+        );
 
         pthread_cond_broadcast(
             &condEstado
@@ -130,9 +194,16 @@ void Partida::solicitarDetencion() {
         &mutexTablero
     );
 
-    if (!terminada) {
+    if (
+        !terminada &&
+        !interrupcionServidor
+    ) {
         interrupcionServidor = true;
         estadoPendiente = true;
+
+        registrarLog(
+            "Interrupcion SIGINT solicitada"
+        );
 
         pthread_cond_broadcast(
             &condEstado
@@ -213,7 +284,8 @@ bool Partida::moverPerroAleatorio(
         juego.obtenerTablero()
                 .obtenerFicha(origen) != 'D'
     ) {
-        posicionesPerros[indice] = -1;
+        posicionesPerros[indice] =
+            -1;
 
         return false;
     }
@@ -263,13 +335,23 @@ bool Partida::moverPerroAleatorio(
     posicionesPerros[indice] =
         destino;
 
-    cout << "Perro "
-         << indice + 1
-         << ": "
-         << origen
-         << " -> "
-         << destino
-         << "\n";
+    cout
+        << "Perro "
+        << indice + 1
+        << ": "
+        << origen
+        << " -> "
+        << destino
+        << "\n";
+
+    registrarLog(
+        "Perro " +
+        to_string(indice + 1) +
+        ": " +
+        to_string(origen) +
+        " -> " +
+        to_string(destino)
+    );
 
     return true;
 }
@@ -394,13 +476,23 @@ bool Partida::moverPumaAleatorio(
             }
         }
 
-        cout << "Puma: "
-             << origen
-             << " -> "
-             << captura.destino
-             << " captura Perro en "
-             << captura.perro
-             << "\n";
+        cout
+            << "Puma: "
+            << origen
+            << " -> "
+            << captura.destino
+            << " captura Perro en "
+            << captura.perro
+            << "\n";
+
+        registrarLog(
+            "Puma: " +
+            to_string(origen) +
+            " -> " +
+            to_string(captura.destino) +
+            " captura Perro en " +
+            to_string(captura.perro)
+        );
 
         return true;
     }
@@ -429,11 +521,19 @@ bool Partida::moverPumaAleatorio(
     posicionPuma =
         destino;
 
-    cout << "Puma: "
-         << origen
-         << " -> "
-         << destino
-         << "\n";
+    cout
+        << "Puma: "
+        << origen
+        << " -> "
+        << destino
+        << "\n";
+
+    registrarLog(
+        "Puma: " +
+        to_string(origen) +
+        " -> " +
+        to_string(destino)
+    );
 
     return true;
 }
@@ -471,6 +571,10 @@ void* Partida::ejecutarJuez(
             cout
                 << "\nJuez: partida detenida por SIGINT.\n";
 
+            partida->registrarLog(
+                "Juez: partida detenida por SIGINT"
+            );
+
             partida->ganador = 0;
             partida->terminada = true;
         }
@@ -479,6 +583,10 @@ void* Partida::ejecutarJuez(
         ) {
             cout
                 << "\nJuez: Los Perros ganan por abandono del Puma.\n";
+
+            partida->registrarLog(
+                "Juez: Los Perros ganan por abandono del Puma"
+            );
 
             partida->ganador = 2;
 
@@ -493,6 +601,10 @@ void* Partida::ejecutarJuez(
             cout
                 << "\nJuez: El Puma gana por abandono de los Perros.\n";
 
+            partida->registrarLog(
+                "Juez: El Puma gana por abandono de los Perros"
+            );
+
             partida->ganador = 1;
 
             partida->finalizoPorAbandono =
@@ -506,8 +618,11 @@ void* Partida::ejecutarJuez(
             cout
                 << "\nJuez: El Puma gana la partida.\n";
 
-            partida->ganador = 1;
+            partida->registrarLog(
+                "Juez: El Puma gana la partida"
+            );
 
+            partida->ganador = 1;
             partida->terminada = true;
         }
         else if (
@@ -516,8 +631,11 @@ void* Partida::ejecutarJuez(
             cout
                 << "\nJuez: Los Perros ganan la partida.\n";
 
-            partida->ganador = 2;
+            partida->registrarLog(
+                "Juez: Los Perros ganan la partida"
+            );
 
+            partida->ganador = 2;
             partida->terminada = true;
         }
 
@@ -610,6 +728,10 @@ void* Partida::ejecutarPuma(
 
             partida->estadoPendiente =
                 true;
+
+            partida->registrarLog(
+                "Interrupcion SIGINT detectada por Puma"
+            );
 
             pthread_cond_broadcast(
                 &partida->condEstado
@@ -722,6 +844,10 @@ void* Partida::ejecutarPerro(
             partida->estadoPendiente =
                 true;
 
+            partida->registrarLog(
+                "Interrupcion SIGINT detectada por Perro"
+            );
+
             pthread_cond_broadcast(
                 &partida->condEstado
             );
@@ -799,7 +925,16 @@ void Partida::iniciar() {
     cout
         << "\nEstado inicial de la partida:\n";
 
+    cout
+        << "Log: logs/partida_"
+        << numeroPartida
+        << ".txt\n";
+
     juego.obtenerTablero().mostrar();
+
+    registrarLog(
+        "Threads de la partida iniciados"
+    );
 
     int resultadoJuez =
         pthread_create(
@@ -813,7 +948,17 @@ void Partida::iniciar() {
         cout
             << "Error: no se pudo crear el Juez.\n";
 
+        registrarLog(
+            "Error: no se pudo crear el Juez"
+        );
+
         terminada = true;
+
+        registrarLog(
+            "Partida finalizada"
+        );
+
+        archivoLog.close();
 
         return;
     }
@@ -832,6 +977,10 @@ void Partida::iniciar() {
     if (!pumaCreado) {
         cout
             << "Fallo interno del jugador Puma.\n";
+
+        registrarLog(
+            "Fallo interno del jugador Puma"
+        );
 
         reportarAbandonoPuma();
     }
@@ -874,6 +1023,10 @@ void Partida::iniciar() {
             if (resultado != 0) {
                 cout
                     << "Fallo interno del jugador Perros.\n";
+
+                registrarLog(
+                    "Fallo interno del jugador Perros"
+                );
 
                 reportarAbandonoPerros();
 
@@ -918,6 +1071,30 @@ void Partida::iniciar() {
                 nullptr
             );
         }
+    }
+
+    registrarLog(
+        "Partida finalizada"
+    );
+
+    if (ganador == 1) {
+        registrarLog(
+            "Ganador final: Puma"
+        );
+    }
+    else if (ganador == 2) {
+        registrarLog(
+            "Ganador final: Perros"
+        );
+    }
+    else {
+        registrarLog(
+            "Partida sin ganador"
+        );
+    }
+
+    if (archivoLog.is_open()) {
+        archivoLog.close();
     }
 
     cout
