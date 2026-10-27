@@ -13,7 +13,24 @@ SRC = src/main.cpp \
 all:
 	$(CXX) $(CXXFLAGS) $(SRC) -o $(TARGET)
 
-clean:
-	rm -f $(TARGET)
+test_juez:
+	$(CXX) $(CXXFLAGS) tests/test_juez.cpp src/tablero.cpp src/juego.cpp -o test_juez
 
-.PHONY: all clean
+test_colision:
+	$(CXX) $(CXXFLAGS) tests/test_colision.cpp src/tablero.cpp src/juego.cpp -o test_colision
+
+test_estres:
+	$(CXX) $(CXXFLAGS) tests/test_estres.cpp src/tablero.cpp src/juego.cpp -o test_estres
+
+test_estres_tsan:
+	$(CXX) $(CXXFLAGS) -fsanitize=thread -g tests/test_estres.cpp src/tablero.cpp src/juego.cpp -o test_estres_tsan
+
+tests: test_juez test_colision test_estres
+	./test_juez
+	./test_colision
+	./test_estres
+
+clean:
+	rm -f $(TARGET) test_juez test_colision test_estres test_estres_tsan
+
+.PHONY: all tests test_juez test_colision test_estres test_estres_tsan clean

@@ -47,10 +47,10 @@ El archivo `config.txt` es opcional. Si no se entrega, el programa utiliza valor
 
 El archivo permite configurar:
 
-- retardo minimo entre movimientos;
-- retardo maximo entre movimientos;
-- semilla utilizada para los movimientos aleatorios;
-- posicion inicial del Puma;
+- retardo minimo entre movimientos  
+- retardo maximo entre movimientos  
+- semilla utilizada para los movimientos aleatorios  
+- posicion inicial del Puma  
 - posiciones iniciales de los 12 Perros.
 
 Ejemplo de `config.txt`:
@@ -83,7 +83,7 @@ Actualmente el `main` recibe los argumentos `N` y `M`.
 
 Se comprueba que:
 
-- `N` sea al menos 2;
+- `N` sea al menos 2  
 - `M` sea mayor que 0.
 
 Luego se crea el servidor encargado de organizar las partidas del torneo.
@@ -109,13 +109,13 @@ Cada posicion puede contener:
 
 Actualmente el tablero permite:
 
-- comprobar si una posicion es valida;
-- comprobar si una posicion esta libre;
-- revisar si dos posiciones son adyacentes;
-- colocar fichas;
-- mover fichas entre posiciones adyacentes;
-- realizar una captura;
-- mostrar el estado del tablero;
+- comprobar si una posicion es valida  
+- comprobar si una posicion esta libre  
+- revisar si dos posiciones son adyacentes  
+- colocar fichas  
+- mover fichas entre posiciones adyacentes  
+- realizar una captura  
+- mostrar el estado del tablero  
 - mostrar las posiciones vecinas de una casilla.
 
 Las conexiones entre las posiciones se guardan en una lista de vecinos.
@@ -126,19 +126,19 @@ La clase `Juego` se encarga de las reglas del Komikan y utiliza internamente un 
 
 Actualmente se encuentra implementado:
 
-- movimiento del Puma;
-- movimiento de los Perros;
-- captura de un Perro por parte del Puma;
-- contador de Perros capturados;
-- comprobacion de victoria del Puma;
-- comprobacion de movimientos disponibles del Puma;
+- movimiento del Puma  
+- movimiento de los Perros  
+- captura de un Perro por parte del Puma  
+- contador de Perros capturados  
+- comprobacion de victoria del Puma  
+- comprobacion de movimientos disponibles del Puma  
 - comprobacion de victoria de los Perros.
 
 Para realizar una captura se comprueba que:
 
-- en la posicion inicial exista un Puma;
-- exista un Perro entre el origen y el destino;
-- la posicion de destino este libre;
+- en la posicion inicial exista un Puma  
+- exista un Perro entre el origen y el destino  
+- la posicion de destino este libre  
 - el salto mantenga la misma direccion.
 
 Cada vez que una captura es valida se aumenta el contador de Perros capturados.
@@ -171,16 +171,16 @@ Cada partida posee un thread de Juez encargado de revisar el estado del juego.
 
 El Juez comprueba:
 
-- si el Puma alcanzo 6 Perros capturados;
-- si el Puma se encuentra completamente acorralado;
+- si el Puma alcanzo 6 Perros capturados  
+- si el Puma se encuentra completamente acorralado  
 - cuando debe finalizar la partida.
 
 Para comunicarse con los threads de las fichas se utiliza una variable de condicion `pthread_cond_t`.
 
 Cuando una ficha realiza un movimiento valido:
 
-- se marca que existe un nuevo estado pendiente;
-- se notifica al Juez mediante `pthread_cond_signal()`;
+- se marca que existe un nuevo estado pendiente  
+- se notifica al Juez mediante `pthread_cond_signal()`  
 - el Juez revisa las condiciones de victoria.
 
 Mientras no existe un nuevo estado para revisar, el Juez queda esperando mediante `pthread_cond_wait()` sin realizar espera activa.
@@ -208,22 +208,22 @@ La clase `Configuracion` se encarga de cargar y validar los valores del archivo 
 
 Actualmente permite configurar:
 
-- retardo minimo;
-- retardo maximo;
-- semilla aleatoria;
-- posicion inicial del Puma;
+- retardo minimo  
+- retardo maximo  
+- semilla aleatoria  
+- posicion inicial del Puma  
 - posiciones iniciales de los 12 Perros.
 
 Si no se entrega un archivo de configuracion, se utilizan valores por defecto.
 
 Tambien se comprueba que:
 
-- el retardo minimo no sea negativo;
-- el retardo maximo sea mayor o igual que el minimo;
-- la posicion del Puma sea valida;
-- las posiciones de los Perros sean validas;
-- existan exactamente 12 Perros;
-- no existan dos fichas utilizando la misma posicion;
+- el retardo minimo no sea negativo  
+- el retardo maximo sea mayor o igual que el minimo  
+- la posicion del Puma sea valida  
+- las posiciones de los Perros sean validas  
+- existan exactamente 12 Perros  
+- no existan dos fichas utilizando la misma posicion  
 - los valores del archivo tengan un formato valido.
 
 ## Decisiones de diseño
@@ -256,43 +256,50 @@ Tambien se comprueba que:
 
 Actualmente se han realizado pruebas para:
 
-- creacion del tablero vacio;
-- colocacion del Puma;
-- colocacion de Perros;
-- movimiento normal entre posiciones adyacentes;
-- captura horizontal valida;
-- eliminacion del Perro despues de una captura;
-- aumento del contador de Perros capturados;
-- rechazo de una captura que cambia de direccion;
-- rechazo del movimiento de un Perro hacia una casilla ocupada por el Puma;
-- deteccion de un Puma completamente acorralado;
-- victoria del Puma al capturar 6 Perros;
-- compilacion con `-Wall -Wextra -std=c++17 -pthread`;
-- ejecucion concurrente del Puma y los 12 Perros;
-- movimientos realizados por distintos threads;
-- retardos aleatorios entre movimientos;
-- capturas del Puma durante una partida concurrente;
-- proteccion del tablero mediante mutex;
-- finalizacion de los threads al terminar la partida;
-- deteccion de victoria durante una partida concurrente;
-- ejecucion del Juez en un thread independiente;
-- deteccion de victoria del Puma por parte del Juez;
-- finalizacion de los threads despues de que el Juez detecta un ganador;
-- ejecucion simultanea de un Juez independiente por cada partida;
-- comunicacion entre las fichas y el Juez mediante `pthread_cond_t`;
-- ejecucion de varias partidas;
-- prueba con 4 jugadores y 1 mesa;
-- prueba con 4 jugadores y 2 mesas;
-- prueba con 8 jugadores y 2 mesas;
-- comprobacion de que nunca existan mas de `M` mesas activas;
-- liberacion de una mesa al finalizar una partida;
-- inicio de una nueva partida cuando queda una mesa disponible;
-- ejecucion sin `config.txt` utilizando valores por defecto;
-- carga correcta de `config.txt`;
-- cambio del rango de retardos mediante el archivo;
-- cambio de la semilla aleatoria mediante el archivo;
-- validacion de una configuracion con retardos incorrectos;
+- creacion del tablero vacio
+- colocacion del Puma
+- colocacion de Perros
+- movimiento normal entre posiciones adyacentes
+- captura horizontal valida
+- eliminacion del Perro despues de una captura
+- aumento del contador de Perros capturados
+- rechazo de una captura que cambia de direccion
+- rechazo del movimiento de un Perro hacia una casilla ocupada por el Puma
+- deteccion de un Puma completamente acorralado
+- victoria del Puma al capturar 6 Perros
+- compilacion con `-Wall -Wextra -std=c++17 -pthread`
+- ejecucion concurrente del Puma y los 12 Perros
+- movimientos realizados por distintos threads
+- retardos aleatorios entre movimientos
+- capturas del Puma durante una partida concurrente
+- proteccion del tablero mediante mutex
+- finalizacion de los threads al terminar la partida
+- deteccion de victoria durante una partida concurrente
+- ejecucion del Juez en un thread independiente
+- deteccion de victoria del Puma por parte del Juez
+- finalizacion de los threads despues de que el Juez detecta un ganador
+- ejecucion simultanea de un Juez independiente por cada partida
+- comunicacion entre las fichas y el Juez mediante `pthread_cond_t`
+- ejecucion de varias partidas
+- prueba con 4 jugadores y 1 mesa
+- prueba con 4 jugadores y 2 mesas
+- prueba con 8 jugadores y 2 mesas
+- comprobacion de que nunca existan mas de `M` mesas activas 
+- liberacion de una mesa al finalizar una partida  
+- inicio de una nueva partida cuando queda una mesa disponible
+- ejecucion sin `config.txt` utilizando valores por defecto
+- carga correcta de `config.txt`
+- cambio del rango de retardos mediante el archivo
+- cambio de la semilla aleatoria mediante el archivo
+- validacion de una configuracion con retardos incorrectos
 - rechazo de una configuracion invalida antes de iniciar las partidas.
+- prueba automatica de victoria del Puma
+- prueba automatica de Puma acorralado
+- prueba concurrente de colision entre varios Perros intentando ocupar la misma casilla
+- comprobacion de que solo una ficha puede ganar una posicion compartida
+- prueba de estres con 12 threads realizando operaciones concurrentes
+- prueba de estres utilizando ThreadSanitizer
+- ejecucion de ThreadSanitizer sin condiciones de carrera detectadas.
 
 ## Estado actual
 
@@ -308,10 +315,9 @@ El programa tambien puede utilizar un archivo `config.txt` opcional para definir
 
 Todavia falta implementar:
 
-- manejo de desconexiones;
-- manejo de `SIGINT`;
-- logs de las partidas;
-- pruebas de estres y concurrencia.
+- manejo de desconexiones  
+- manejo de `SIGINT`  
+- logs de las partidas  
 
 ## Limitaciones
 
