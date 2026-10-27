@@ -32,14 +32,18 @@ test_abandono:
 test_logs:
 	$(CXX) $(CXXFLAGS) tests/test_logs.cpp src/tablero.cpp src/juego.cpp src/partida.cpp src/senales.cpp -o test_logs
 
-tests: test_juez test_colision test_estres test_abandono test_logs
+test_fallo_servidor:
+	$(CXX) $(CXXFLAGS) tests/test_fallo_servidor.cpp src/tablero.cpp src/juego.cpp src/partida.cpp src/servidor.cpp src/configuracion.cpp src/senales.cpp -o test_fallo_servidor
+
+tests: test_juez test_colision test_estres test_abandono test_logs test_fallo_servidor
 	./test_juez
 	./test_colision
 	./test_estres
 	./test_abandono
 	./test_logs
+	./test_fallo_servidor
 
 clean:
-	rm -f $(TARGET) test_juez test_colision test_estres test_estres_tsan test_abandono test_logs
+	rm -f $(TARGET) test_juez test_colision test_estres test_estres_tsan test_abandono test_logs test_fallo_servidor
 
-.PHONY: all tests test_juez test_colision test_estres test_estres_tsan test_abandono test_logs clean
+.PHONY: all tests test_juez test_colision test_estres test_estres_tsan test_abandono test_logs test_fallo_servidor clean

@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "configuracion.hpp"
+#include "partida.hpp"
 
 using namespace std;
 
@@ -28,7 +29,11 @@ private:
 
     int mesasActivas;
 
-    static void* ejecutarPartida(void* datos);
+    vector<Partida*> partidasActivas;
+
+    static void* ejecutarPartida(
+        void* datos
+    );
 
 public:
     Servidor(
@@ -40,6 +45,18 @@ public:
     ~Servidor();
 
     void iniciar();
+
+    bool reportarFalloPuma(
+        int numeroPartida
+    );
+
+    bool reportarFalloPerros(
+        int numeroPartida
+    );
+
+    int obtenerPartidaActiva();
+
+    int obtenerMesasActivas();
 };
 
 #endif

@@ -11,4 +11,5 @@ logs/*.txt
 /test_abandono
 /test_logs
 /salida_*.txt
+/test_fallo_servidor
 

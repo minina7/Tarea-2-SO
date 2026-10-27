@@ -3,7 +3,6 @@
 #include <iostream>
 #include <cerrno>
 
-#include "partida.hpp"
 #include "senales.hpp"
 
 using namespace std;
@@ -23,6 +22,14 @@ Servidor::Servidor(
         config;
 
     mesasActivas = 0;
+
+    int cantidadPartidas =
+        cantidadJugadores / 2;
+
+    partidasActivas.resize(
+        cantidadPartidas + 1,
+        nullptr
+    );
 
     sem_init(
         &semaforoMesas,
@@ -44,6 +51,128 @@ Servidor::~Servidor() {
     pthread_mutex_destroy(
         &mutexEstado
     );
+}
+
+bool Servidor::reportarFalloPuma(
+    int numeroPartida
+) {
+    pthread_mutex_lock(
+        &mutexEstado
+    );
+
+    if (
+        numeroPartida <= 0 ||
+        numeroPartida >=
+            static_cast<int>(
+                partidasActivas.size()
+            ) ||
+        partidasActivas[numeroPartida] ==
+            nullptr
+    ) {
+        pthread_mutex_unlock(
+            &mutexEstado
+        );
+
+        return false;
+    }
+
+    cout
+        << "\nServidor: fallo detectado en el Puma de la partida "
+        << numeroPartida
+        << "\n";
+
+    partidasActivas[numeroPartida]
+        ->reportarAbandonoPuma();
+
+    pthread_mutex_unlock(
+        &mutexEstado
+    );
+
+    return true;
+}
+
+bool Servidor::reportarFalloPerros(
+    int numeroPartida
+) {
+    pthread_mutex_lock(
+        &mutexEstado
+    );
+
+    if (
+        numeroPartida <= 0 ||
+        numeroPartida >=
+            static_cast<int>(
+                partidasActivas.size()
+            ) ||
+        partidasActivas[numeroPartida] ==
+            nullptr
+    ) {
+        pthread_mutex_unlock(
+            &mutexEstado
+        );
+
+        return false;
+    }
+
+    cout
+        << "\nServidor: fallo detectado en los Perros de la partida "
+        << numeroPartida
+        << "\n";
+
+    partidasActivas[numeroPartida]
+        ->reportarAbandonoPerros();
+
+    pthread_mutex_unlock(
+        &mutexEstado
+    );
+
+    return true;
+}
+
+int Servidor::obtenerPartidaActiva() {
+    pthread_mutex_lock(
+        &mutexEstado
+    );
+
+    int encontrada = 0;
+
+    for (
+        int i = 1;
+        i < static_cast<int>(
+            partidasActivas.size()
+        );
+        i++
+    ) {
+        if (
+            partidasActivas[i] !=
+            nullptr
+        ) {
+            encontrada = i;
+
+            break;
+        }
+    }
+
+    pthread_mutex_unlock(
+        &mutexEstado
+    );
+
+    return encontrada;
+}
+
+int Servidor::obtenerMesasActivas() {
+    pthread_mutex_lock(
+        &mutexEstado
+    );
+
+    int cantidad =
+        mesasActivas;
+
+    pthread_mutex_unlock(
+        &mutexEstado
+    );
+
+    return cantidad;
 }
 
 void* Servidor::ejecutarPartida(
@@ -98,11 +227,25 @@ void* Servidor::ejecutarPartida(
         return nullptr;
     }
 
+    Partida partida(
+        servidor->configuracion.posicionPuma,
+        servidor->configuracion.posicionesPerros,
+        servidor->configuracion.retardoMin,
+        servidor->configuracion.retardoMax,
+        servidor->configuracion.semilla +
+            info->numeroPartida * 1000,
+        info->numeroPartida
+    );
+
     pthread_mutex_lock(
         &servidor->mutexEstado
     );
 
     servidor->mesasActivas++;
+
+    servidor->partidasActivas[
+        info->numeroPartida
+    ] = &partida;
 
     cout
         << "\nPartida "
@@ -128,16 +271,6 @@ void* Servidor::ejecutarPartida(
         &servidor->mutexEstado
     );
 
-    Partida partida(
-        servidor->configuracion.posicionPuma,
-        servidor->configuracion.posicionesPerros,
-        servidor->configuracion.retardoMin,
-        servidor->configuracion.retardoMax,
-        servidor->configuracion.semilla +
-            info->numeroPartida * 1000,
-        info->numeroPartida
-    );
-
     if (
         interrupcionSolicitada()
     ) {
@@ -152,6 +285,10 @@ void* Servidor::ejecutarPartida(
     pthread_mutex_lock(
         &servidor->mutexEstado
     );
+
+    servidor->partidasActivas[
+        info->numeroPartida
+    ] = nullptr;
 
     servidor->mesasActivas--;
 
