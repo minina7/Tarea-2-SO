@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include <unistd.h>
 
+#include "senales.hpp"
+
 using namespace std;
 
 Partida::Partida(
@@ -13,13 +15,20 @@ Partida::Partida(
     int retardoMaximo,
     unsigned int semilla
 ) {
-    posicionPuma = posicionInicialPuma;
-    posicionesPerros = posicionesInicialesPerros;
+    posicionPuma =
+        posicionInicialPuma;
 
-    retardoMin = retardoMinimo;
-    retardoMax = retardoMaximo;
+    posicionesPerros =
+        posicionesInicialesPerros;
 
-    semillaBase = semilla;
+    retardoMin =
+        retardoMinimo;
+
+    retardoMax =
+        retardoMaximo;
+
+    semillaBase =
+        semilla;
 
     terminada = false;
     estadoPendiente = true;
@@ -27,11 +36,21 @@ Partida::Partida(
     abandonoPuma = false;
     abandonoPerros = false;
 
+    interrupcionServidor = false;
+
     ganador = 0;
+
     finalizoPorAbandono = false;
 
-    pthread_mutex_init(&mutexTablero, nullptr);
-    pthread_cond_init(&condEstado, nullptr);
+    pthread_mutex_init(
+        &mutexTablero,
+        nullptr
+    );
+
+    pthread_cond_init(
+        &condEstado,
+        nullptr
+    );
 
     juego.obtenerTablero().colocarFicha(
         posicionPuma,
@@ -47,8 +66,13 @@ Partida::Partida(
 }
 
 Partida::~Partida() {
-    pthread_cond_destroy(&condEstado);
-    pthread_mutex_destroy(&mutexTablero);
+    pthread_cond_destroy(
+        &condEstado
+    );
+
+    pthread_mutex_destroy(
+        &mutexTablero
+    );
 }
 
 int Partida::obtenerRetardo(
@@ -64,7 +88,9 @@ int Partida::obtenerRetardo(
 }
 
 void Partida::reportarAbandonoPuma() {
-    pthread_mutex_lock(&mutexTablero);
+    pthread_mutex_lock(
+        &mutexTablero
+    );
 
     if (!terminada) {
         abandonoPuma = true;
@@ -75,11 +101,15 @@ void Partida::reportarAbandonoPuma() {
         );
     }
 
-    pthread_mutex_unlock(&mutexTablero);
+    pthread_mutex_unlock(
+        &mutexTablero
+    );
 }
 
 void Partida::reportarAbandonoPerros() {
-    pthread_mutex_lock(&mutexTablero);
+    pthread_mutex_lock(
+        &mutexTablero
+    );
 
     if (!terminada) {
         abandonoPerros = true;
@@ -90,26 +120,71 @@ void Partida::reportarAbandonoPerros() {
         );
     }
 
-    pthread_mutex_unlock(&mutexTablero);
+    pthread_mutex_unlock(
+        &mutexTablero
+    );
+}
+
+void Partida::solicitarDetencion() {
+    pthread_mutex_lock(
+        &mutexTablero
+    );
+
+    if (!terminada) {
+        interrupcionServidor = true;
+        estadoPendiente = true;
+
+        pthread_cond_broadcast(
+            &condEstado
+        );
+    }
+
+    pthread_mutex_unlock(
+        &mutexTablero
+    );
 }
 
 int Partida::obtenerGanador() {
-    pthread_mutex_lock(&mutexTablero);
+    pthread_mutex_lock(
+        &mutexTablero
+    );
 
-    int resultado = ganador;
+    int resultado =
+        ganador;
 
-    pthread_mutex_unlock(&mutexTablero);
+    pthread_mutex_unlock(
+        &mutexTablero
+    );
 
     return resultado;
 }
 
 bool Partida::terminoPorAbandono() {
-    pthread_mutex_lock(&mutexTablero);
+    pthread_mutex_lock(
+        &mutexTablero
+    );
 
     bool resultado =
         finalizoPorAbandono;
 
-    pthread_mutex_unlock(&mutexTablero);
+    pthread_mutex_unlock(
+        &mutexTablero
+    );
+
+    return resultado;
+}
+
+bool Partida::fueInterrumpida() {
+    pthread_mutex_lock(
+        &mutexTablero
+    );
+
+    bool resultado =
+        interrupcionServidor;
+
+    pthread_mutex_unlock(
+        &mutexTablero
+    );
 
     return resultado;
 }
@@ -139,6 +214,7 @@ bool Partida::moverPerroAleatorio(
                 .obtenerFicha(origen) != 'D'
     ) {
         posicionesPerros[indice] = -1;
+
         return false;
     }
 
@@ -158,7 +234,9 @@ bool Partida::moverPerroAleatorio(
                         destino
                     )
         ) {
-            destinos.push_back(destino);
+            destinos.push_back(
+                destino
+            );
         }
     }
 
@@ -167,16 +245,23 @@ bool Partida::moverPerroAleatorio(
     }
 
     int indiceDestino =
-        rand_r(&seed) % destinos.size();
+        rand_r(&seed) %
+        destinos.size();
 
     int destino =
         destinos[indiceDestino];
 
-    if (!juego.moverPerro(origen, destino)) {
+    if (
+        !juego.moverPerro(
+            origen,
+            destino
+        )
+    ) {
         return false;
     }
 
-    posicionesPerros[indice] = destino;
+    posicionesPerros[indice] =
+        destino;
 
     cout << "Perro "
          << indice + 1
@@ -214,7 +299,9 @@ bool Partida::moverPumaAleatorio(
                         destino
                     )
         ) {
-            movimientos.push_back(destino);
+            movimientos.push_back(
+                destino
+            );
         }
     }
 
@@ -243,7 +330,10 @@ bool Partida::moverPumaAleatorio(
                 )
             ) {
                 capturas.push_back(
-                    {perro, destino}
+                    {
+                        perro,
+                        destino
+                    }
                 );
             }
         }
@@ -258,11 +348,14 @@ bool Partida::moverPumaAleatorio(
     }
 
     int opcion =
-        rand_r(&seed) % totalOpciones;
+        rand_r(&seed) %
+        totalOpciones;
 
     if (
         opcion <
-        static_cast<int>(capturas.size())
+        static_cast<int>(
+            capturas.size()
+        )
     ) {
         Captura captura =
             capturas[opcion];
@@ -294,7 +387,9 @@ bool Partida::moverPumaAleatorio(
                 posicionesPerros[i] ==
                 captura.perro
             ) {
-                posicionesPerros[i] = -1;
+                posicionesPerros[i] =
+                    -1;
+
                 break;
             }
         }
@@ -331,7 +426,8 @@ bool Partida::moverPumaAleatorio(
         return false;
     }
 
-    posicionPuma = destino;
+    posicionPuma =
+        destino;
 
     cout << "Puma: "
          << origen
@@ -346,7 +442,9 @@ void* Partida::ejecutarJuez(
     void* datos
 ) {
     Partida* partida =
-        static_cast<Partida*>(datos);
+        static_cast<Partida*>(
+            datos
+        );
 
     pthread_mutex_lock(
         &partida->mutexTablero
@@ -367,20 +465,39 @@ void* Partida::ejecutarJuez(
             break;
         }
 
-        if (partida->abandonoPuma) {
+        if (
+            partida->interrupcionServidor
+        ) {
+            cout
+                << "\nJuez: partida detenida por SIGINT.\n";
+
+            partida->ganador = 0;
+            partida->terminada = true;
+        }
+        else if (
+            partida->abandonoPuma
+        ) {
             cout
                 << "\nJuez: Los Perros ganan por abandono del Puma.\n";
 
             partida->ganador = 2;
-            partida->finalizoPorAbandono = true;
+
+            partida->finalizoPorAbandono =
+                true;
+
             partida->terminada = true;
         }
-        else if (partida->abandonoPerros) {
+        else if (
+            partida->abandonoPerros
+        ) {
             cout
                 << "\nJuez: El Puma gana por abandono de los Perros.\n";
 
             partida->ganador = 1;
-            partida->finalizoPorAbandono = true;
+
+            partida->finalizoPorAbandono =
+                true;
+
             partida->terminada = true;
         }
         else if (
@@ -390,6 +507,7 @@ void* Partida::ejecutarJuez(
                 << "\nJuez: El Puma gana la partida.\n";
 
             partida->ganador = 1;
+
             partida->terminada = true;
         }
         else if (
@@ -399,10 +517,12 @@ void* Partida::ejecutarJuez(
                 << "\nJuez: Los Perros ganan la partida.\n";
 
             partida->ganador = 2;
+
             partida->terminada = true;
         }
 
-        partida->estadoPendiente = false;
+        partida->estadoPendiente =
+            false;
 
         pthread_cond_broadcast(
             &partida->condEstado
@@ -424,7 +544,9 @@ void* Partida::ejecutarPuma(
     void* datos
 ) {
     DatosHilo* info =
-        static_cast<DatosHilo*>(datos);
+        static_cast<DatosHilo*>(
+            datos
+        );
 
     Partida* partida =
         info->partida;
@@ -433,10 +555,30 @@ void* Partida::ejecutarPuma(
         info->seed;
 
     while (true) {
-        int retardo =
-            partida->obtenerRetardo(seed);
+        if (
+            interrupcionSolicitada()
+        ) {
+            partida->solicitarDetencion();
 
-        usleep(retardo * 1000);
+            break;
+        }
+
+        int retardo =
+            partida->obtenerRetardo(
+                seed
+            );
+
+        usleep(
+            retardo * 1000
+        );
+
+        if (
+            interrupcionSolicitada()
+        ) {
+            partida->solicitarDetencion();
+
+            break;
+        }
 
         pthread_mutex_lock(
             &partida->mutexTablero
@@ -453,6 +595,26 @@ void* Partida::ejecutarPuma(
         }
 
         if (partida->terminada) {
+            pthread_mutex_unlock(
+                &partida->mutexTablero
+            );
+
+            break;
+        }
+
+        if (
+            interrupcionSolicitada()
+        ) {
+            partida->interrupcionServidor =
+                true;
+
+            partida->estadoPendiente =
+                true;
+
+            pthread_cond_broadcast(
+                &partida->condEstado
+            );
+
             pthread_mutex_unlock(
                 &partida->mutexTablero
             );
@@ -490,7 +652,9 @@ void* Partida::ejecutarPerro(
     void* datos
 ) {
     DatosHilo* info =
-        static_cast<DatosHilo*>(datos);
+        static_cast<DatosHilo*>(
+            datos
+        );
 
     Partida* partida =
         info->partida;
@@ -502,10 +666,30 @@ void* Partida::ejecutarPerro(
         info->seed;
 
     while (true) {
-        int retardo =
-            partida->obtenerRetardo(seed);
+        if (
+            interrupcionSolicitada()
+        ) {
+            partida->solicitarDetencion();
 
-        usleep(retardo * 1000);
+            break;
+        }
+
+        int retardo =
+            partida->obtenerRetardo(
+                seed
+            );
+
+        usleep(
+            retardo * 1000
+        );
+
+        if (
+            interrupcionSolicitada()
+        ) {
+            partida->solicitarDetencion();
+
+            break;
+        }
 
         pthread_mutex_lock(
             &partida->mutexTablero
@@ -522,6 +706,26 @@ void* Partida::ejecutarPerro(
         }
 
         if (partida->terminada) {
+            pthread_mutex_unlock(
+                &partida->mutexTablero
+            );
+
+            break;
+        }
+
+        if (
+            interrupcionSolicitada()
+        ) {
+            partida->interrupcionServidor =
+                true;
+
+            partida->estadoPendiente =
+                true;
+
+            pthread_cond_broadcast(
+                &partida->condEstado
+            );
+
             pthread_mutex_unlock(
                 &partida->mutexTablero
             );
@@ -588,6 +792,7 @@ void Partida::iniciar() {
 
     datosPuma.partida = this;
     datosPuma.indice = -1;
+
     datosPuma.seed =
         semillaBase + 100;
 
@@ -639,11 +844,24 @@ void Partida::iniciar() {
             );
             i++
         ) {
-            datosPerros[i].partida = this;
-            datosPerros[i].indice = i;
+            if (
+                interrupcionSolicitada()
+            ) {
+                solicitarDetencion();
+
+                break;
+            }
+
+            datosPerros[i].partida =
+                this;
+
+            datosPerros[i].indice =
+                i;
 
             datosPerros[i].seed =
-                semillaBase + 200 + i;
+                semillaBase +
+                200 +
+                i;
 
             int resultado =
                 pthread_create(
@@ -662,8 +880,15 @@ void Partida::iniciar() {
                 break;
             }
 
-            perrosCreados[i] = true;
+            perrosCreados[i] =
+                true;
         }
+    }
+
+    if (
+        interrupcionSolicitada()
+    ) {
+        solicitarDetencion();
     }
 
     pthread_join(
@@ -685,7 +910,9 @@ void Partida::iniciar() {
         );
         i++
     ) {
-        if (perrosCreados[i]) {
+        if (
+            perrosCreados[i]
+        ) {
             pthread_join(
                 hilosPerros[i],
                 nullptr
@@ -693,5 +920,6 @@ void Partida::iniciar() {
         }
     }
 
-    cout << "\nPartida finalizada.\n";
+    cout
+        << "\nPartida finalizada.\n";
 }

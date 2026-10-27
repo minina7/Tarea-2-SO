@@ -8,7 +8,8 @@ SRC = src/main.cpp \
       src/juego.cpp \
       src/partida.cpp \
       src/servidor.cpp \
-      src/configuracion.cpp
+      src/configuracion.cpp \
+      src/senales.cpp
 
 all:
 	$(CXX) $(CXXFLAGS) $(SRC) -o $(TARGET)
@@ -26,7 +27,7 @@ test_estres_tsan:
 	$(CXX) $(CXXFLAGS) -fsanitize=thread -g tests/test_estres.cpp src/tablero.cpp src/juego.cpp -o test_estres_tsan
 
 test_abandono:
-	$(CXX) $(CXXFLAGS) tests/test_abandono.cpp src/tablero.cpp src/juego.cpp src/partida.cpp -o test_abandono
+	$(CXX) $(CXXFLAGS) tests/test_abandono.cpp src/tablero.cpp src/juego.cpp src/partida.cpp src/senales.cpp -o test_abandono
 
 tests: test_juez test_colision test_estres test_abandono
 	./test_juez

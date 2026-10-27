@@ -36,6 +36,8 @@ private:
     bool abandonoPuma;
     bool abandonoPerros;
 
+    bool interrupcionServidor;
+
     int ganador;
     bool finalizoPorAbandono;
 
@@ -45,7 +47,9 @@ private:
 
     int obtenerRetardo(unsigned int& seed);
 
-    bool moverPumaAleatorio(unsigned int& seed);
+    bool moverPumaAleatorio(
+        unsigned int& seed
+    );
 
     bool moverPerroAleatorio(
         int indice,
@@ -68,8 +72,12 @@ public:
     void reportarAbandonoPuma();
     void reportarAbandonoPerros();
 
+    void solicitarDetencion();
+
     int obtenerGanador();
+
     bool terminoPorAbandono();
+    bool fueInterrumpida();
 };
 
 #endif

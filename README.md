@@ -34,7 +34,7 @@ Para eliminar el ejecutable:
 make clean
 ```
 
-La forma final de ejecucion pedida para la tarea es:
+La forma de ejecucion es:
 
 ```bash
 ./torneo N M [config.txt]
@@ -91,6 +91,8 @@ Luego se crea el servidor encargado de organizar las partidas del torneo.
 El `main` tambien permite recibir opcionalmente un archivo `config.txt`.
 
 Si el archivo es entregado, se carga y valida antes de iniciar el torneo. Si no se entrega, se utilizan los valores por defecto.
+
+Antes de iniciar el servidor tambien se instala el manejador de `SIGINT` para permitir un cierre ordenado al presionar `Ctrl+C`.
 
 ### Tablero
 
@@ -162,7 +164,7 @@ Los Perros ganan cuando el Puma no tiene movimientos normales ni capturas dispon
 - Cuando un Perro es capturado, su thread deja de participar en la partida
 - Cada partida crea un thread adicional encargado de funcionar como Juez
 - Los threads notifican al Juez cuando existe un nuevo estado que debe revisar
-- Cuando el Juez detecta una condicion de victoria o abandono, la partida se marca como terminada
+- Cuando el Juez detecta una condicion de victoria, abandono o interrupcion, la partida se marca como terminada
 - Se utiliza `pthread_join()` para esperar correctamente la finalizacion de los threads
 
 ### Juez
@@ -174,6 +176,7 @@ El Juez comprueba:
 - si el Puma alcanzo 6 Perros capturados
 - si el Puma se encuentra completamente acorralado
 - si alguno de los jugadores reporto un abandono o fallo
+- si el servidor solicito detener la partida
 - cuando debe finalizar la partida
 
 Para comunicarse con los threads de las fichas se utiliza una variable de condicion `pthread_cond_t`.
@@ -190,7 +193,9 @@ Si el Puma abandona, el Juez declara ganadores a los Perros.
 
 Si el jugador de los Perros abandona, el Juez declara ganador al Puma.
 
-Cuando se detecta un ganador, se notifica a los demas threads para que puedan finalizar correctamente.
+Si se solicita una interrupcion mediante `SIGINT`, el Juez termina la partida sin declarar un ganador.
+
+Cuando la partida debe finalizar, se notifica a los demas threads para que puedan terminar correctamente.
 
 ### Servidor
 
@@ -206,6 +211,9 @@ La clase `Servidor` se encarga actualmente de organizar las partidas del torneo.
 - Se mantiene un contador de mesas activas protegido mediante un mutex
 - El servidor espera la finalizacion de todas las partidas utilizando `pthread_join()`
 - Si la cantidad de jugadores es impar, el ultimo jugador queda sin pareja
+- Si se recibe `SIGINT`, se evita iniciar nuevas partidas
+- Las partidas activas son detenidas de manera ordenada
+- Al finalizar se liberan los recursos de sincronizacion utilizados por el servidor
 
 ### Configuracion
 
@@ -230,6 +238,24 @@ Tambien se comprueba que:
 - existan exactamente 12 Perros
 - no existan dos fichas utilizando la misma posicion
 - los valores del archivo tengan un formato valido
+
+### Senales
+
+El manejo de señales se encuentra separado del resto del programa.
+
+Se instala un manejador para `SIGINT` que permite detectar cuando el usuario presiona `Ctrl+C`.
+
+El manejador solamente registra que se solicito una interrupcion. Luego el servidor y las partidas revisan este estado y realizan el cierre de forma ordenada.
+
+Durante el cierre:
+
+- se dejan de iniciar nuevas partidas
+- se notifica a las partidas activas
+- los Jueces terminan las partidas interrumpidas
+- los threads finalizan
+- las mesas son liberadas
+- el servidor espera el termino de los threads creados
+- las primitivas de sincronizacion se destruyen al finalizar sus objetos
 
 ## Decisiones de diseño
 
@@ -258,6 +284,10 @@ Tambien se comprueba que:
 - Si no se entrega `config.txt`, el programa mantiene valores por defecto
 - Cada partida recibe una semilla derivada de la semilla configurada y de su numero de partida
 - Antes de iniciar el torneo se validan los valores del archivo para evitar posiciones invalidas, fichas repetidas o rangos de retardo incorrectos
+- El manejador de `SIGINT` solamente modifica una bandera para mantener el manejo de la señal simple
+- El cierre real se realiza fuera del manejador de la señal
+- Las partidas comprueban la interrupcion y notifican al Juez para finalizar de forma ordenada
+- El servidor espera la finalizacion de los threads antes de terminar
 
 ## Pruebas
 
@@ -312,10 +342,16 @@ Actualmente se han realizado pruebas para:
 - deteccion del abandono por parte del Juez
 - declaracion del oponente como ganador por abandono
 - finalizacion correcta de los threads despues de un abandono
+- interrupcion del servidor mediante `SIGINT`
+- notificacion de las partidas activas al presionar `Ctrl+C`
+- finalizacion ordenada de los threads durante una interrupcion
+- liberacion de las mesas activas despues de `SIGINT`
+- comprobacion de que las mesas activas llegan nuevamente a `0`
+- cierre ordenado del servidor despues de `SIGINT`
 
 ## Estado actual
 
-Actualmente se encuentra implementada la logica basica del juego, las partidas concurrentes, el Juez de cada partida, el control de varias mesas, la lectura del archivo de configuracion y el mecanismo de abandono de jugadores.
+Actualmente se encuentra implementada la logica basica del juego, las partidas concurrentes, el Juez de cada partida, el control de varias mesas, la lectura del archivo de configuracion, el mecanismo de abandono de jugadores y el manejo de `SIGINT`.
 
 Cada ficha se ejecuta mediante un thread y el tablero compartido de cada partida se protege utilizando un mutex global.
 
@@ -327,15 +363,15 @@ El servidor puede crear varias partidas a partir de `N` jugadores y utiliza un s
 
 El programa tambien puede utilizar un archivo `config.txt` opcional para definir los retardos, la semilla y las posiciones iniciales.
 
+Al recibir `SIGINT`, el programa detiene el inicio de nuevas partidas, termina ordenadamente las partidas activas, espera los threads creados y libera las mesas utilizadas.
+
 Todavia falta implementar:
 
-- manejo de `SIGINT`
 - logs de las partidas
 - integracion final del manejo de fallos con el flujo completo del servidor
 
 ## Limitaciones
 
 - El manejo de abandono se encuentra implementado dentro de cada partida, pero falta integrarlo completamente con el flujo del servidor
-- Todavia no se encuentra implementado el manejo de `SIGINT`
 - Todavia no se generan archivos de log para las partidas
 - La sincronizacion interna de cada partida utiliza un mutex global para todo el tablero
