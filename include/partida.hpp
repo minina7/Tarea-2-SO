@@ -19,6 +19,7 @@ private:
     Juego juego;
 
     pthread_mutex_t mutexTablero;
+    pthread_cond_t condEstado;
 
     int posicionPuma;
 
@@ -30,9 +31,11 @@ private:
     unsigned int semillaBase;
 
     bool terminada;
+    bool estadoPendiente;
 
     static void* ejecutarPuma(void* datos);
     static void* ejecutarPerro(void* datos);
+    static void* ejecutarJuez(void* datos);
 
     int obtenerRetardo(unsigned int& seed);
 
@@ -42,8 +45,6 @@ private:
         int indice,
         unsigned int& seed
     );
-
-    void revisarFinPartida();
 
 public:
     Partida(

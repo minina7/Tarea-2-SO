@@ -22,8 +22,10 @@ Partida::Partida(
     semillaBase = semilla;
 
     terminada = false;
+    estadoPendiente = true;
 
     pthread_mutex_init(&mutexTablero, nullptr);
+    pthread_cond_init(&condEstado, nullptr);
 
     juego.obtenerTablero().colocarFicha(
         posicionPuma,
@@ -39,6 +41,7 @@ Partida::Partida(
 }
 
 Partida::~Partida() {
+    pthread_cond_destroy(&condEstado);
     pthread_mutex_destroy(&mutexTablero);
 }
 
@@ -54,23 +57,6 @@ int Partida::obtenerRetardo(
         );
 }
 
-void Partida::revisarFinPartida() {
-    if (terminada) {
-        return;
-    }
-
-    if (juego.victoriaPuma()) {
-        cout << "\nEl Puma gana la partida.\n";
-        terminada = true;
-        return;
-    }
-
-    if (juego.victoriaPerros()) {
-        cout << "\nLos Perros ganan la partida.\n";
-        terminada = true;
-    }
-}
-
 bool Partida::moverPerroAleatorio(
     int indice,
     unsigned int& seed
@@ -84,15 +70,16 @@ bool Partida::moverPerroAleatorio(
         return false;
     }
 
-    int origen = posicionesPerros[indice];
+    int origen =
+        posicionesPerros[indice];
 
     if (origen == -1) {
         return false;
     }
 
     if (
-        juego.obtenerTablero().obtenerFicha(origen)
-        != 'D'
+        juego.obtenerTablero()
+                .obtenerFicha(origen) != 'D'
     ) {
         posicionesPerros[indice] = -1;
         return false;
@@ -106,11 +93,13 @@ bool Partida::moverPerroAleatorio(
         destino++
     ) {
         if (
-            juego.obtenerTablero().estaLibre(destino) &&
-            juego.obtenerTablero().sonAdyacentes(
-                origen,
-                destino
-            )
+            juego.obtenerTablero()
+                    .estaLibre(destino) &&
+            juego.obtenerTablero()
+                    .sonAdyacentes(
+                        origen,
+                        destino
+                    )
         ) {
             destinos.push_back(destino);
         }
@@ -160,11 +149,13 @@ bool Partida::moverPumaAleatorio(
         destino++
     ) {
         if (
-            juego.obtenerTablero().estaLibre(destino) &&
-            juego.obtenerTablero().sonAdyacentes(
-                posicionPuma,
-                destino
-            )
+            juego.obtenerTablero()
+                    .estaLibre(destino) &&
+            juego.obtenerTablero()
+                    .sonAdyacentes(
+                        posicionPuma,
+                        destino
+                    )
         ) {
             movimientos.push_back(destino);
         }
@@ -176,8 +167,8 @@ bool Partida::moverPumaAleatorio(
         perro++
     ) {
         if (
-            juego.obtenerTablero().obtenerFicha(perro)
-            != 'D'
+            juego.obtenerTablero()
+                    .obtenerFicha(perro) != 'D'
         ) {
             continue;
         }
@@ -216,9 +207,11 @@ bool Partida::moverPumaAleatorio(
         opcion <
         static_cast<int>(capturas.size())
     ) {
-        Captura captura = capturas[opcion];
+        Captura captura =
+            capturas[opcion];
 
-        int origen = posicionPuma;
+        int origen =
+            posicionPuma;
 
         if (
             !juego.capturarPerro(
@@ -230,7 +223,8 @@ bool Partida::moverPumaAleatorio(
             return false;
         }
 
-        posicionPuma = captura.destino;
+        posicionPuma =
+            captura.destino;
 
         for (
             int i = 0;
@@ -261,7 +255,9 @@ bool Partida::moverPumaAleatorio(
 
     int indiceMovimiento =
         opcion -
-        static_cast<int>(capturas.size());
+        static_cast<int>(
+            capturas.size()
+        );
 
     int destino =
         movimientos[indiceMovimiento];
@@ -269,7 +265,10 @@ bool Partida::moverPumaAleatorio(
     int origen =
         posicionPuma;
 
-    if (!juego.moverPuma(origen, destino)) {
+    if (!juego.moverPuma(
+        origen,
+        destino
+    )) {
         return false;
     }
 
@@ -282,6 +281,66 @@ bool Partida::moverPumaAleatorio(
          << "\n";
 
     return true;
+}
+
+void* Partida::ejecutarJuez(
+    void* datos
+) {
+    Partida* partida =
+        static_cast<Partida*>(datos);
+
+    pthread_mutex_lock(
+        &partida->mutexTablero
+    );
+
+    while (!partida->terminada) {
+        while (
+            !partida->estadoPendiente &&
+            !partida->terminada
+        ) {
+            pthread_cond_wait(
+                &partida->condEstado,
+                &partida->mutexTablero
+            );
+        }
+
+        if (partida->terminada) {
+            break;
+        }
+
+        if (
+            partida->juego.victoriaPuma()
+        ) {
+            cout
+                << "\nJuez: El Puma gana la partida.\n";
+
+            partida->terminada = true;
+        }
+        else if (
+            partida->juego.victoriaPerros()
+        ) {
+            cout
+                << "\nJuez: Los Perros ganan la partida.\n";
+
+            partida->terminada = true;
+        }
+
+        partida->estadoPendiente = false;
+
+        pthread_cond_broadcast(
+            &partida->condEstado
+        );
+    }
+
+    pthread_cond_broadcast(
+        &partida->condEstado
+    );
+
+    pthread_mutex_unlock(
+        &partida->mutexTablero
+    );
+
+    return nullptr;
 }
 
 void* Partida::ejecutarPuma(
@@ -306,34 +365,45 @@ void* Partida::ejecutarPuma(
             &partida->mutexTablero
         );
 
+        while (
+            partida->estadoPendiente &&
+            !partida->terminada
+        ) {
+            pthread_cond_wait(
+                &partida->condEstado,
+                &partida->mutexTablero
+            );
+        }
+
         if (partida->terminada) {
             pthread_mutex_unlock(
                 &partida->mutexTablero
             );
+
             break;
         }
 
         bool movio =
-            partida->moverPumaAleatorio(seed);
+            partida->moverPumaAleatorio(
+                seed
+            );
 
         if (movio) {
             partida->juego
                 .obtenerTablero()
                 .mostrar();
+
+            partida->estadoPendiente =
+                true;
+
+            pthread_cond_signal(
+                &partida->condEstado
+            );
         }
-
-        partida->revisarFinPartida();
-
-        bool termino =
-            partida->terminada;
 
         pthread_mutex_unlock(
             &partida->mutexTablero
         );
-
-        if (termino) {
-            break;
-        }
     }
 
     return nullptr;
@@ -364,10 +434,21 @@ void* Partida::ejecutarPerro(
             &partida->mutexTablero
         );
 
+        while (
+            partida->estadoPendiente &&
+            !partida->terminada
+        ) {
+            pthread_cond_wait(
+                &partida->condEstado,
+                &partida->mutexTablero
+            );
+        }
+
         if (partida->terminada) {
             pthread_mutex_unlock(
                 &partida->mutexTablero
             );
+
             break;
         }
 
@@ -378,6 +459,7 @@ void* Partida::ejecutarPerro(
             pthread_mutex_unlock(
                 &partida->mutexTablero
             );
+
             break;
         }
 
@@ -391,20 +473,18 @@ void* Partida::ejecutarPerro(
             partida->juego
                 .obtenerTablero()
                 .mostrar();
+
+            partida->estadoPendiente =
+                true;
+
+            pthread_cond_signal(
+                &partida->condEstado
+            );
         }
-
-        partida->revisarFinPartida();
-
-        bool termino =
-            partida->terminada;
 
         pthread_mutex_unlock(
             &partida->mutexTablero
         );
-
-        if (termino) {
-            break;
-        }
     }
 
     return nullptr;
@@ -412,6 +492,7 @@ void* Partida::ejecutarPerro(
 
 void Partida::iniciar() {
     pthread_t hiloPuma;
+    pthread_t hiloJuez;
 
     vector<pthread_t> hilosPerros(
         posicionesPerros.size()
@@ -428,9 +509,17 @@ void Partida::iniciar() {
     datosPuma.seed =
         semillaBase + 100;
 
-    cout << "\nEstado inicial de la partida:\n";
+    cout
+        << "\nEstado inicial de la partida:\n";
 
     juego.obtenerTablero().mostrar();
+
+    pthread_create(
+        &hiloJuez,
+        nullptr,
+        ejecutarJuez,
+        this
+    );
 
     pthread_create(
         &hiloPuma,
@@ -459,6 +548,11 @@ void Partida::iniciar() {
             &datosPerros[i]
         );
     }
+
+    pthread_join(
+        hiloJuez,
+        nullptr
+    );
 
     pthread_join(
         hiloPuma,

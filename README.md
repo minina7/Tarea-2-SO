@@ -160,8 +160,32 @@ Los Perros ganan cuando el Puma no tiene movimientos normales ni capturas dispon
 - Esto evita que dos fichas ocupen una misma posicion de forma simultanea.
 - El Puma puede realizar movimientos normales y capturar Perros durante la ejecucion concurrente.
 - Cuando un Perro es capturado, su thread deja de participar en la partida.
-- Cuando se detecta una condicion de victoria, los threads terminan.
+- Cada partida crea un thread adicional encargado de funcionar como Juez.
+- Los threads notifican al Juez cuando existe un nuevo estado que debe revisar.
+- Cuando el Juez detecta una condicion de victoria, la partida se marca como terminada.
 - Se utiliza `pthread_join()` para esperar correctamente la finalizacion de los threads.
+
+### Juez
+
+Cada partida posee un thread de Juez encargado de revisar el estado del juego.
+
+El Juez comprueba:
+
+- si el Puma alcanzo 6 Perros capturados;
+- si el Puma se encuentra completamente acorralado;
+- cuando debe finalizar la partida.
+
+Para comunicarse con los threads de las fichas se utiliza una variable de condicion `pthread_cond_t`.
+
+Cuando una ficha realiza un movimiento valido:
+
+- se marca que existe un nuevo estado pendiente;
+- se notifica al Juez mediante `pthread_cond_signal()`;
+- el Juez revisa las condiciones de victoria.
+
+Mientras no existe un nuevo estado para revisar, el Juez queda esperando mediante `pthread_cond_wait()` sin realizar espera activa.
+
+Cuando se detecta un ganador, se notifica a los demas threads para que puedan finalizar correctamente.
 
 ### Servidor
 
@@ -216,6 +240,9 @@ Tambien se comprueba que:
 - Se eligio un mutex global porque el tablero es pequeno y permite evitar condiciones de carrera sin agregar demasiada complejidad.
 - Aunque este metodo limita que dos movimientos se modifiquen al mismo tiempo, mantiene el estado del tablero consistente y reduce el riesgo de deadlocks.
 - Cada ficha realiza el retardo fuera de la seccion critica y solo toma el mutex cuando necesita revisar o modificar el tablero.
+- Se utiliza una variable de condicion `pthread_cond_t` para comunicar los movimientos de las fichas al Juez.
+- El Juez espera mediante `pthread_cond_wait()` mientras no existe un nuevo estado que revisar.
+- Esto permite que el Juez permanezca bloqueado sin utilizar espera activa.
 - Se utiliza un semaforo para representar la cantidad de mesas disponibles.
 - Antes de comenzar una partida se utiliza `sem_wait()` y al terminar se utiliza `sem_post()`.
 - De esta forma nunca pueden existir mas de `M` mesas activas al mismo tiempo.
@@ -248,6 +275,11 @@ Actualmente se han realizado pruebas para:
 - proteccion del tablero mediante mutex;
 - finalizacion de los threads al terminar la partida;
 - deteccion de victoria durante una partida concurrente;
+- ejecucion del Juez en un thread independiente;
+- deteccion de victoria del Puma por parte del Juez;
+- finalizacion de los threads despues de que el Juez detecta un ganador;
+- ejecucion simultanea de un Juez independiente por cada partida;
+- comunicacion entre las fichas y el Juez mediante `pthread_cond_t`;
 - ejecucion de varias partidas;
 - prueba con 4 jugadores y 1 mesa;
 - prueba con 4 jugadores y 2 mesas;
@@ -264,9 +296,11 @@ Actualmente se han realizado pruebas para:
 
 ## Estado actual
 
-Actualmente se encuentra implementada la logica basica del juego, las partidas concurrentes, el control de varias mesas y la lectura del archivo de configuracion.
+Actualmente se encuentra implementada la logica basica del juego, las partidas concurrentes, el Juez de cada partida, el control de varias mesas y la lectura del archivo de configuracion.
 
 Cada ficha se ejecuta mediante un thread y el tablero compartido de cada partida se protege utilizando un mutex global.
+
+Cada partida posee ademas un thread de Juez que espera mediante una variable de condicion y comprueba las condiciones de victoria cuando se producen cambios en el tablero.
 
 El servidor puede crear varias partidas a partir de `N` jugadores y utiliza un semaforo para impedir que funcionen mas de `M` mesas al mismo tiempo.
 
@@ -274,7 +308,6 @@ El programa tambien puede utilizar un archivo `config.txt` opcional para definir
 
 Todavia falta implementar:
 
-- Juez de cada mesa;
 - manejo de desconexiones;
 - manejo de `SIGINT`;
 - logs de las partidas;
