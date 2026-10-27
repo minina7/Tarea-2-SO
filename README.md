@@ -19,7 +19,13 @@ make
 Para ejecutar la version actual:
 
 ```bash
-./torneo
+./torneo N M
+```
+
+Por ejemplo:
+
+```bash
+./torneo 8 2
 ```
 
 Para eliminar el ejecutable:
@@ -38,6 +44,8 @@ La forma final de ejecucion pedida para la tarea sera:
 - `M`: cantidad maxima de mesas que pueden funcionar al mismo tiempo.
 - `config.txt`: archivo de configuracion opcional.
 
+Actualmente el programa ya recibe `N` y `M`. La lectura de `config.txt` todavia no se encuentra implementada.
+
 El programa se compila con C++17 utilizando las opciones:
 
 `g++ -Wall -Wextra -std=c++17 -pthread`
@@ -46,14 +54,16 @@ El programa se compila con C++17 utilizando las opciones:
 
 ### Main
 
-Actualmente el `main` se utiliza para iniciar una partida concurrente de prueba.
+Actualmente el `main` recibe los argumentos `N` y `M`.
 
-- Define la posicion inicial del Puma.
-- Define las posiciones iniciales de los 12 Perros.
-- Crea una partida con retardos entre 50 y 300 ms.
-- Inicia la ejecucion concurrente de las fichas.
+Se comprueba que:
 
-Mas adelante el `main` sera adaptado para recibir los argumentos `N`, `M` y el archivo de configuracion.
+- `N` sea al menos 2;
+- `M` sea mayor que 0.
+
+Luego se crea el servidor encargado de organizar las partidas del torneo.
+
+Mas adelante se agregara la lectura del archivo opcional `config.txt`.
 
 ### Tablero
 
@@ -125,6 +135,21 @@ Los Perros ganan cuando el Puma no tiene movimientos normales ni capturas dispon
 - Cuando se detecta una condicion de victoria, los threads terminan.
 - Se utiliza `pthread_join()` para esperar correctamente la finalizacion de los threads.
 
+### Servidor
+
+La clase `Servidor` se encarga actualmente de organizar las partidas del torneo.
+
+- Recibe la cantidad total de jugadores `N`.
+- Recibe la cantidad maxima de mesas simultaneas `M`.
+- Los jugadores son emparejados de dos en dos.
+- Cada pareja ejecuta una partida en un thread independiente.
+- Se utiliza un semaforo `sem_t` para limitar la cantidad de mesas activas.
+- Si todas las mesas estan ocupadas, las siguientes partidas quedan esperando hasta que una mesa se libere.
+- Al terminar una partida se libera el cupo de la mesa utilizando `sem_post()`.
+- Se mantiene un contador de mesas activas protegido mediante un mutex.
+- El servidor espera la finalizacion de todas las partidas utilizando `pthread_join()`.
+- Si la cantidad de jugadores es impar, el ultimo jugador queda sin pareja.
+
 ## Decisiones de diseño
 
 - El tablero se representa como un grafo porque ademas de la cuadricula de 5x5 tambien existe el trono.
@@ -139,6 +164,10 @@ Los Perros ganan cuando el Puma no tiene movimientos normales ni capturas dispon
 - Se eligio un mutex global porque el tablero es pequeno y permite evitar condiciones de carrera sin agregar demasiada complejidad.
 - Aunque este metodo limita que dos movimientos se modifiquen al mismo tiempo, mantiene el estado del tablero consistente y reduce el riesgo de deadlocks.
 - Cada ficha realiza el retardo fuera de la seccion critica y solo toma el mutex cuando necesita revisar o modificar el tablero.
+- Se utiliza un semaforo para representar la cantidad de mesas disponibles.
+- Antes de comenzar una partida se utiliza `sem_wait()` y al terminar se utiliza `sem_post()`.
+- De esta forma nunca pueden existir mas de `M` mesas activas al mismo tiempo.
+- Las partidas que no encuentran una mesa disponible quedan esperando sin realizar espera activa.
 
 ## Pruebas
 
@@ -162,22 +191,29 @@ Actualmente se han realizado pruebas para:
 - capturas del Puma durante una partida concurrente;
 - proteccion del tablero mediante mutex;
 - finalizacion de los threads al terminar la partida;
-- deteccion de victoria durante una partida concurrente.
+- deteccion de victoria durante una partida concurrente;
+- ejecucion de varias partidas;
+- prueba con 4 jugadores y 1 mesa;
+- prueba con 4 jugadores y 2 mesas;
+- prueba con 8 jugadores y 2 mesas;
+- comprobacion de que nunca existan mas de `M` mesas activas;
+- liberacion de una mesa al finalizar una partida;
+- inicio de una nueva partida cuando queda una mesa disponible.
 
 ## Estado actual
 
-Actualmente se encuentra implementada la logica basica del juego y una partida concurrente.
+Actualmente se encuentra implementada la logica basica del juego, las partidas concurrentes y el control de varias mesas.
 
-Cada ficha se ejecuta mediante un thread y el tablero compartido se protege utilizando un mutex global.
+Cada ficha se ejecuta mediante un thread y el tablero compartido de cada partida se protege utilizando un mutex global.
+
+El servidor puede crear varias partidas a partir de `N` jugadores y utiliza un semaforo para impedir que funcionen mas de `M` mesas al mismo tiempo.
 
 Todavia falta implementar:
 
 - lectura de `config.txt`;
-- servidor y llegada de jugadores;
-- emparejamiento de jugadores;
-- varias mesas funcionando al mismo tiempo;
-- limite maximo de `M` mesas;
-- semaforo para controlar las mesas disponibles;
+- configuracion de retardos mediante archivo;
+- configuracion de posiciones iniciales;
+- semilla aleatoria configurable;
 - Juez de cada mesa;
 - manejo de desconexiones;
 - manejo de `SIGINT`;
@@ -186,8 +222,10 @@ Todavia falta implementar:
 
 ## Limitaciones
 
-- Actualmente se simula una sola partida concurrente.
-- Todavia no se encuentra implementado el servidor de jugadores.
-- El limite de `M` mesas todavia no esta implementado.
 - El archivo `config.txt` todavia no se utiliza.
-- La sincronizacion actual utiliza un mutex global para todo el tablero.
+- Los retardos se mantienen actualmente entre 50 y 300 ms.
+- Las posiciones iniciales de las fichas se encuentran definidas directamente en el codigo.
+- La semilla aleatoria todavia no se puede configurar desde un archivo.
+- Todavia no se encuentra implementado el manejo de desconexiones.
+- Todavia no se encuentra implementado el manejo de `SIGINT`.
+- La sincronizacion interna de cada partida utiliza un mutex global para todo el tablero.

@@ -6,7 +6,8 @@ TARGET = torneo
 SRC = src/main.cpp \
       src/tablero.cpp \
       src/juego.cpp \
-      src/partida.cpp
+      src/partida.cpp \
+      src/servidor.cpp
 
 all:
 	$(CXX) $(CXXFLAGS) $(SRC) -o $(TARGET)
