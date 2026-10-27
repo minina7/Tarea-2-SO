@@ -4,7 +4,8 @@ CXXFLAGS = -Wall -Wextra -std=c++17 -pthread -Iinclude
 TARGET = torneo
 
 SRC = src/main.cpp \
-      src/tablero.cpp
+      src/tablero.cpp \
+      src/juego.cpp
 
 all:
 	$(CXX) $(CXXFLAGS) $(SRC) -o $(TARGET)

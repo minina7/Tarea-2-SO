@@ -1,7 +1,9 @@
 #include "tablero.hpp"
-
 #include <algorithm>
 #include <iostream>
+
+using namespace std;
+
 
 Tablero::Tablero()
     : casillas(TOTAL_CASILLAS, '.'),
@@ -18,7 +20,6 @@ void Tablero::conectar(int a, int b) {
 
 
 void Tablero::construirConexiones() {
-
 
     for (int fila = 0; fila < 5; ++fila) {
 
@@ -81,7 +82,7 @@ bool Tablero::sonAdyacentes(int origen, int destino) const {
 
     const auto& lista = vecinos[origen];
 
-    return std::find(
+    return find(
         lista.begin(),
         lista.end(),
         destino
@@ -140,15 +141,42 @@ bool Tablero::moverFicha(int origen, int destino) {
     return true;
 }
 
+bool Tablero::capturarFicha(int origen, int capturada, int destino) {
+
+    if (!esPosicionValida(origen) ||
+        !esPosicionValida(capturada) ||
+        !esPosicionValida(destino)) {
+        return false;
+    }
+
+    if (casillas[origen] != 'P') {
+        return false;
+    }
+
+    if (casillas[capturada] != 'D') {
+        return false;
+    }
+
+    if (!estaLibre(destino)) {
+        return false;
+    }
+
+    casillas[origen] = '.';
+    casillas[capturada] = '.';
+    casillas[destino] = 'P';
+
+    return true;
+}
+
 
 void Tablero::mostrar() const {
 
-    std::cout << "\n";
+    cout << "\n";
 
-    std::cout << "              [" << casillas[26] << "]\n";
-    std::cout << "             / | \\\n";
-    std::cout << "          [" << casillas[25] << "]---[" << casillas[27] << "]\n";
-    std::cout << "          / |   |   | \\\n";
+    cout << "              [" << casillas[26] << "]\n";
+    cout << "             / | \\\n";
+    cout << "          [" << casillas[25] << "]---[" << casillas[27] << "]\n";
+    cout << "          / |   |   | \\\n";
 
     for (int fila = 0; fila < 5; ++fila) {
 
@@ -156,21 +184,21 @@ void Tablero::mostrar() const {
 
             int posicion = fila * 5 + columna;
 
-            std::cout << "[" << casillas[posicion] << "]";
+            cout << "[" << casillas[posicion] << "]";
 
             if (columna < 4) {
-                std::cout << "---";
+                cout << "---";
             }
         }
 
-        std::cout << "\n";
+        cout << "\n";
 
         if (fila < 4) {
-            std::cout << " |     |     |     |     |\n";
+            cout << " |     |     |     |     |\n";
         }
     }
 
-    std::cout << "\n";
+    cout << "\n";
 }
 
 
@@ -178,17 +206,17 @@ void Tablero::mostrarVecinos(int posicion) const {
 
     if (!esPosicionValida(posicion)) {
 
-        std::cout << "Posicion invalida\n";
+        cout << "Posicion invalida\n";
         return;
     }
 
-    std::cout << "Vecinos de "
-              << posicion
-              << ": ";
+    cout << "Vecinos de "
+         << posicion
+         << ": ";
 
     for (int vecino : vecinos[posicion]) {
-        std::cout << vecino << " ";
+        cout << vecino << " ";
     }
 
-    std::cout << "\n";
+    cout << "\n";
 }
