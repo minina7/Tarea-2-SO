@@ -35,15 +35,22 @@ test_logs:
 test_fallo_servidor:
 	$(CXX) $(CXXFLAGS) tests/test_fallo_servidor.cpp src/tablero.cpp src/juego.cpp src/partida.cpp src/servidor.cpp src/configuracion.cpp src/senales.cpp -o test_fallo_servidor
 
-tests: test_juez test_colision test_estres test_abandono test_logs test_fallo_servidor
+test_trono:
+	$(CXX) $(CXXFLAGS) tests/test_trono.cpp src/tablero.cpp src/juego.cpp -o test_trono
+
+torneo_tsan:
+	$(CXX) $(CXXFLAGS) -fsanitize=thread -g $(SRC) -o torneo_tsan
+
+tests: test_juez test_colision test_estres test_abandono test_logs test_fallo_servidor test_trono
 	./test_juez
 	./test_colision
 	./test_estres
 	./test_abandono
 	./test_logs
 	./test_fallo_servidor
+	./test_trono
 
 clean:
-	rm -f $(TARGET) test_juez test_colision test_estres test_estres_tsan test_abandono test_logs test_fallo_servidor
+	rm -f $(TARGET) torneo_tsan test_juez test_colision test_estres test_estres_tsan test_abandono test_logs test_fallo_servidor test_trono
 
-.PHONY: all tests test_juez test_colision test_estres test_estres_tsan test_abandono test_logs test_fallo_servidor clean
+.PHONY: all tests test_juez test_colision test_estres test_estres_tsan test_abandono test_logs test_fallo_servidor test_trono torneo_tsan clean

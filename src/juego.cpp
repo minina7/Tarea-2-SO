@@ -2,45 +2,55 @@
 
 using namespace std;
 
-
 Juego::Juego()
     : perrosCapturados(0) {
 }
-
 
 Tablero& Juego::obtenerTablero() {
     return tablero;
 }
 
-
-bool Juego::moverPuma(int origen, int destino) {
-
-    if (tablero.obtenerFicha(origen) != 'P') {
+bool Juego::moverPuma(
+    int origen,
+    int destino
+) {
+    if (
+        tablero.obtenerFicha(origen) != 'P'
+    ) {
         return false;
     }
 
-    return tablero.moverFicha(origen, destino);
+    return tablero.moverFicha(
+        origen,
+        destino
+    );
 }
 
-
-bool Juego::moverPerro(int origen, int destino) {
-
-    if (tablero.obtenerFicha(origen) != 'D') {
+bool Juego::moverPerro(
+    int origen,
+    int destino
+) {
+    if (
+        tablero.obtenerFicha(origen) != 'D'
+    ) {
         return false;
     }
 
-    return tablero.moverFicha(origen, destino);
+    return tablero.moverFicha(
+        origen,
+        destino
+    );
 }
-
 
 bool Juego::obtenerCoordenadas(
     int posicion,
     int& x,
     int& y
 ) const {
-
-    if (posicion >= 0 && posicion <= 24) {
-
+    if (
+        posicion >= 0 &&
+        posicion <= 24
+    ) {
         x = posicion % 5;
         y = posicion / 5;
 
@@ -48,7 +58,6 @@ bool Juego::obtenerCoordenadas(
     }
 
     if (posicion == 25) {
-
         x = 1;
         y = -1;
 
@@ -56,7 +65,6 @@ bool Juego::obtenerCoordenadas(
     }
 
     if (posicion == 26) {
-
         x = 2;
         y = -2;
 
@@ -64,7 +72,6 @@ bool Juego::obtenerCoordenadas(
     }
 
     if (posicion == 27) {
-
         x = 3;
         y = -1;
 
@@ -74,25 +81,34 @@ bool Juego::obtenerCoordenadas(
     return false;
 }
 
-
 bool Juego::esSaltoValido(
     int origen,
     int perro,
     int destino
 ) const {
-
-    if (!tablero.esPosicionValida(origen) ||
+    if (
+        !tablero.esPosicionValida(origen) ||
         !tablero.esPosicionValida(perro) ||
-        !tablero.esPosicionValida(destino)) {
-
+        !tablero.esPosicionValida(destino)
+    ) {
         return false;
     }
 
-    if (!tablero.sonAdyacentes(origen, perro)) {
+    if (
+        !tablero.sonAdyacentes(
+            origen,
+            perro
+        )
+    ) {
         return false;
     }
 
-    if (!tablero.sonAdyacentes(perro, destino)) {
+    if (
+        !tablero.sonAdyacentes(
+            perro,
+            destino
+        )
+    ) {
         return false;
     }
 
@@ -105,68 +121,113 @@ bool Juego::esSaltoValido(
     int xDestino;
     int yDestino;
 
-    obtenerCoordenadas(
-        origen,
-        xOrigen,
-        yOrigen
-    );
+    if (
+        !obtenerCoordenadas(
+            origen,
+            xOrigen,
+            yOrigen
+        )
+    ) {
+        return false;
+    }
 
-    obtenerCoordenadas(
-        perro,
-        xPerro,
-        yPerro
-    );
+    if (
+        !obtenerCoordenadas(
+            perro,
+            xPerro,
+            yPerro
+        )
+    ) {
+        return false;
+    }
 
-    obtenerCoordenadas(
-        destino,
-        xDestino,
-        yDestino
-    );
+    if (
+        !obtenerCoordenadas(
+            destino,
+            xDestino,
+            yDestino
+        )
+    ) {
+        return false;
+    }
 
-    int dx1 = xPerro - xOrigen;
-    int dy1 = yPerro - yOrigen;
+    int dx1 =
+        xPerro - xOrigen;
 
-    int dx2 = xDestino - xPerro;
-    int dy2 = yDestino - yPerro;
+    int dy1 =
+        yPerro - yOrigen;
 
-    return dx1 == dx2 &&
-           dy1 == dy2;
+    int dx2 =
+        xDestino - xPerro;
+
+    int dy2 =
+        yDestino - yPerro;
+
+    int productoCruz =
+        dx1 * dy2 -
+        dy1 * dx2;
+
+    int productoPunto =
+        dx1 * dx2 +
+        dy1 * dy2;
+
+    return
+        productoCruz == 0 &&
+        productoPunto > 0;
 }
-
 
 bool Juego::puedeCapturarPerro(
     int origen,
     int perro,
     int destino
 ) const {
-
-    if (tablero.obtenerFicha(origen) != 'P') {
+    if (
+        tablero.obtenerFicha(origen) != 'P'
+    ) {
         return false;
     }
 
-    if (tablero.obtenerFicha(perro) != 'D') {
+    if (
+        tablero.obtenerFicha(perro) != 'D'
+    ) {
         return false;
     }
 
-    if (!tablero.estaLibre(destino)) {
+    if (
+        !tablero.estaLibre(destino)
+    ) {
         return false;
     }
 
-    return esSaltoValido(origen, perro, destino);
+    return esSaltoValido(
+        origen,
+        perro,
+        destino
+    );
 }
-
 
 bool Juego::capturarPerro(
     int origen,
     int perro,
     int destino
 ) {
-
-    if (!puedeCapturarPerro(origen, perro, destino)) {
+    if (
+        !puedeCapturarPerro(
+            origen,
+            perro,
+            destino
+        )
+    ) {
         return false;
     }
 
-    if (!tablero.capturarFicha(origen, perro, destino)) {
+    if (
+        !tablero.capturarFicha(
+            origen,
+            perro,
+            destino
+        )
+    ) {
         return false;
     }
 
@@ -175,30 +236,27 @@ bool Juego::capturarPerro(
     return true;
 }
 
-
 int Juego::obtenerPerrosCapturados() const {
-
     return perrosCapturados;
 }
 
-
 bool Juego::victoriaPuma() const {
-
     return perrosCapturados >= 6;
 }
 
-
 bool Juego::pumaTieneMovimientos() const {
-
     int posicionPuma = -1;
 
-    for (int i = 0;
-         i < Tablero::TOTAL_CASILLAS;
-         ++i) {
-
-        if (tablero.obtenerFicha(i) == 'P') {
-
+    for (
+        int i = 0;
+        i < Tablero::TOTAL_CASILLAS;
+        i++
+    ) {
+        if (
+            tablero.obtenerFicha(i) == 'P'
+        ) {
             posicionPuma = i;
+
             break;
         }
     }
@@ -207,40 +265,51 @@ bool Juego::pumaTieneMovimientos() const {
         return false;
     }
 
-    for (int destino = 0;
-         destino < Tablero::TOTAL_CASILLAS;
-         ++destino) {
-
-        if (tablero.estaLibre(destino) &&
+    for (
+        int destino = 0;
+        destino < Tablero::TOTAL_CASILLAS;
+        destino++
+    ) {
+        if (
+            tablero.estaLibre(destino) &&
             tablero.sonAdyacentes(
                 posicionPuma,
-                destino)) {
-
+                destino
+            )
+        ) {
             return true;
         }
     }
 
-    for (int perro = 0;
-         perro < Tablero::TOTAL_CASILLAS;
-         ++perro) {
-
-        if (tablero.obtenerFicha(perro) != 'D') {
+    for (
+        int perro = 0;
+        perro < Tablero::TOTAL_CASILLAS;
+        perro++
+    ) {
+        if (
+            tablero.obtenerFicha(perro) != 'D'
+        ) {
             continue;
         }
 
-        for (int destino = 0;
-             destino < Tablero::TOTAL_CASILLAS;
-             ++destino) {
-
-            if (!tablero.estaLibre(destino)) {
+        for (
+            int destino = 0;
+            destino < Tablero::TOTAL_CASILLAS;
+            destino++
+        ) {
+            if (
+                !tablero.estaLibre(destino)
+            ) {
                 continue;
             }
 
-            if (esSaltoValido(
+            if (
+                esSaltoValido(
                     posicionPuma,
                     perro,
-                    destino)) {
-
+                    destino
+                )
+            ) {
                 return true;
             }
         }
@@ -249,8 +318,6 @@ bool Juego::pumaTieneMovimientos() const {
     return false;
 }
 
-
 bool Juego::victoriaPerros() const {
-
     return !pumaTieneMovimientos();
 }

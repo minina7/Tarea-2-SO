@@ -1,11 +1,46 @@
 #include <iostream>
 #include <cstdlib>
+#include <cerrno>
+#include <climits>
 
 #include "servidor.hpp"
 #include "configuracion.hpp"
 #include "senales.hpp"
 
 using namespace std;
+
+bool convertirEntero(
+    const char* texto,
+    int& valor
+) {
+    errno = 0;
+
+    char* fin = nullptr;
+
+    long numero =
+        strtol(
+            texto,
+            &fin,
+            10
+        );
+
+    if (
+        errno == ERANGE ||
+        fin == texto ||
+        *fin != '\0' ||
+        numero < INT_MIN ||
+        numero > INT_MAX
+    ) {
+        return false;
+    }
+
+    valor =
+        static_cast<int>(
+            numero
+        );
+
+    return true;
+}
 
 int main(
     int argc,
@@ -21,11 +56,32 @@ int main(
         return 1;
     }
 
-    int N =
-        atoi(argv[1]);
+    int N;
+    int M;
 
-    int M =
-        atoi(argv[2]);
+    if (
+        !convertirEntero(
+            argv[1],
+            N
+        )
+    ) {
+        cout
+            << "Error: N debe ser un numero entero valido.\n";
+
+        return 1;
+    }
+
+    if (
+        !convertirEntero(
+            argv[2],
+            M
+        )
+    ) {
+        cout
+            << "Error: M debe ser un numero entero valido.\n";
+
+        return 1;
+    }
 
     if (N < 2) {
         cout

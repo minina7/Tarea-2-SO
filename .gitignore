@@ -12,4 +12,6 @@ logs/*.txt
 /test_logs
 /salida_*.txt
 /test_fallo_servidor
+/test_trono
+/torneo_tsan
 
