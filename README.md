@@ -140,6 +140,7 @@ Actualmente se han realizado pruebas para:
 - rechazo del movimiento de un Perro hacia una casilla ocupada por el Puma;
 - deteccion de un Puma completamente acorralado;
 - compilacion con `-Wall -Wextra -std=c++17`.
+- victoria del puma al capturar 6 perros
 
 ## Estado actual
 
